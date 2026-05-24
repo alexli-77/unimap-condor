@@ -1,5 +1,9 @@
 # UniMap Condor
 
+<p align="center">
+  <img src="docs/assets/unimap-condor-logo-banner.png" alt="UniMap Condor" width="700">
+</p>
+
 UniMap Condor is an interactive university intelligence map. It combines ranking map exploration with open research, registry, and community-discovery links so students can compare universities without leaving the map too early.
 
 The name comes from the condor: a large animal built for long-distance flight and wide-angle scanning.

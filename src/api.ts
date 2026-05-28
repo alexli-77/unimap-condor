@@ -12,14 +12,22 @@ import { localAdvisorCards } from "./localAdvisors";
 import { supabase } from "./supabase";
 
 const responseCache = new Map<string, unknown>();
+const jsonCache = new Map<string, unknown>();
 const universityCache = new Map<number, UniversityDetail>();
 const openDataCache = new Map<string, OpenDataProfile>();
 const advisorCache = new Map<string, AdvisorCard[]>();
 const facultyDirectoryCache = new Map<string, FacultyDirectoryEntry[]>();
 
 async function request<T>(path: string, signal?: AbortSignal): Promise<T> {
-  if (!signal && responseCache.has(path)) {
+  if (responseCache.has(path)) {
     return responseCache.get(path) as T;
+  }
+
+  const storageKey = `unimap.api${path}`;
+  const stored = readStoredResponse<T>(storageKey);
+  if (stored) {
+    responseCache.set(path, stored);
+    return stored;
   }
 
   const response = await fetch(`/api${path}`, { signal });
@@ -30,17 +38,45 @@ async function request<T>(path: string, signal?: AbortSignal): Promise<T> {
     throw new Error(data?.message || response.statusText);
   }
 
-  if (!signal) {
-    responseCache.set(path, data);
-  }
+  responseCache.set(path, data);
+  storeResponse(storageKey, data);
 
   return data as T;
 }
 
 async function getJson<T>(url: string, signal?: AbortSignal): Promise<T> {
+  if (jsonCache.has(url)) {
+    return jsonCache.get(url) as T;
+  }
+
   const response = await fetch(url, { signal });
   if (!response.ok) throw new Error(response.statusText);
-  return response.json() as Promise<T>;
+  const data = (await response.json()) as T;
+  jsonCache.set(url, data);
+  return data;
+}
+
+function readStoredResponse<T>(key: string): T | null {
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return null;
+    const cached = JSON.parse(raw) as { savedAt: number; data: T };
+    if (Date.now() - cached.savedAt > 1000 * 60 * 60 * 24 * 7) {
+      localStorage.removeItem(key);
+      return null;
+    }
+    return cached.data;
+  } catch {
+    return null;
+  }
+}
+
+function storeResponse(key: string, data: unknown) {
+  try {
+    localStorage.setItem(key, JSON.stringify({ savedAt: Date.now(), data }));
+  } catch {
+    // Ignore quota/private-mode failures; in-memory cache still applies.
+  }
 }
 
 function uniq(values: Array<string | undefined>) {
@@ -183,13 +219,15 @@ async function getOpenDataProfile(
   const ror = rorResult.status === "fulfilled" ? rorResult.value.items?.[0] : undefined;
 
   if (!openAlex && !ror) {
-    return {
+    const profile: OpenDataProfile = {
       status: "not_found",
       aliases: [],
       topics: [],
       relatedInstitutions: [],
       message: "OpenAlex and ROR did not return a matching institution."
     };
+    openDataCache.set(cacheKey, profile);
+    return profile;
   }
 
   const rorLinks = (ror?.links ?? []) as Array<{ type?: string; value?: string }>;
@@ -230,9 +268,7 @@ async function getOpenDataProfile(
       }))
   };
 
-  if (!signal) {
-    openDataCache.set(cacheKey, profile);
-  }
+  openDataCache.set(cacheKey, profile);
 
   return profile;
 }
@@ -261,13 +297,11 @@ export const api = {
       signal
     ),
   getUniversity: async (id: number, signal?: AbortSignal) => {
-    if (!signal && universityCache.has(id)) {
+    if (universityCache.has(id)) {
       return universityCache.get(id)!;
     }
     const detail = await request<UniversityDetail>(`/universities/${id}/rankings`, signal);
-    if (!signal) {
-      universityCache.set(id, detail);
-    }
+    universityCache.set(id, detail);
     return detail;
   },
   getOpenDataProfile,

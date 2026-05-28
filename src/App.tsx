@@ -1,12 +1,9 @@
 import {
   ArrowLeftRight,
-  BarChart3,
   Building2,
   ChevronDown,
   ExternalLink,
   Globe2,
-  GraduationCap,
-  Info,
   Layers3,
   Loader2,
   MapPin,
@@ -21,6 +18,7 @@ import {
 import maplibregl, { Map as MapLibreMap } from "maplibre-gl";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api } from "./api";
+import mascotLogo from "../docs/assets/unimap-condor-mascot.png";
 import type {
   AdvisorCard,
   FacultyDirectoryEntry,
@@ -33,6 +31,9 @@ import type {
 
 type Mode = "rankings" | "strength";
 type MapStyleId = "liberty" | "bright" | "positron";
+type FavoriteKind = "school" | "subject" | "advisor";
+type LeftPanel = "filters" | "saved" | "compare" | "view";
+type PointSize = "small" | "normal" | "large";
 type PreferenceProfile = {
   degreeLevel: string;
   subjects: string;
@@ -42,21 +43,33 @@ type PreferenceProfile = {
   priority: string;
   timeline: string;
 };
+type FavoriteItem = {
+  id: string;
+  kind: FavoriteKind;
+  universityId: number;
+  universityName: string;
+  city: string;
+  country: string;
+  longitude: number;
+  latitude: number;
+  label: string;
+  createdAt: string;
+};
 
 const mapStyles: Array<{ id: MapStyleId; label: string; url: string }> = [
   {
     id: "liberty",
-    label: "OpenFreeMap Liberty",
+    label: "Liberty",
     url: "https://tiles.openfreemap.org/styles/liberty"
   },
   {
     id: "bright",
-    label: "OpenFreeMap Bright",
+    label: "Bright",
     url: "https://tiles.openfreemap.org/styles/bright"
   },
   {
     id: "positron",
-    label: "OpenFreeMap Positron",
+    label: "Positron",
     url: "https://tiles.openfreemap.org/styles/positron"
   }
 ];
@@ -98,6 +111,7 @@ const defaultPreferenceProfile: PreferenceProfile = {
   priority: "",
   timeline: ""
 };
+const favoritesStorageKey = "unimap.favorites";
 
 function formatCompact(value?: number) {
   if (value === undefined || Number.isNaN(value)) return "n/a";
@@ -108,12 +122,6 @@ function getGoogleMapsUrl(feature: RankingFeature) {
   const p = feature.properties;
   const query = encodeURIComponent(`${p.universityName} ${p.city} ${p.country}`);
   return `https://www.google.com/maps/search/?api=1&query=${query}`;
-}
-
-function getInitialMode(): Mode {
-  return new URLSearchParams(location.search).get("mode") === "strength"
-    ? "strength"
-    : "rankings";
 }
 
 function useDebouncedValue<T>(value: T, delay = 180) {
@@ -127,42 +135,40 @@ function useDebouncedValue<T>(value: T, delay = 180) {
   return debounced;
 }
 
-function AppShell({
-  children,
-  title,
-  subtitle
-}: {
-  children: React.ReactNode;
-  title: string;
-  subtitle: string;
-}) {
-  const [isConfigOpen, setIsConfigOpen] = useState(false);
+function getFavoriteId(kind: FavoriteKind, universityId: number, entityKey: string) {
+  return `${kind}:${universityId}:${entityKey.trim().toLowerCase()}`;
+}
 
-  return (
-    <div className="app">
-      <header className="topbar">
-        <div className="brand">
-          <div className="brand-mark">
-            <GraduationCap size={22} />
-          </div>
-          <div>
-            <h1>{title}</h1>
-            <p>{subtitle}</p>
-          </div>
-        </div>
-        <button
-          className="topbar-action"
-          type="button"
-          onClick={() => setIsConfigOpen(true)}
-        >
-          <Settings2 size={16} />
-          Preference
-        </button>
-      </header>
-      {isConfigOpen && <PreferenceDialog onClose={() => setIsConfigOpen(false)} />}
-      {children}
-    </div>
-  );
+function createFavoriteItem(
+  feature: RankingFeature,
+  kind: FavoriteKind,
+  label: string,
+  entityKey = label
+): FavoriteItem {
+  const p = feature.properties;
+  const [longitude, latitude] = feature.geometry.coordinates;
+  return {
+    id: getFavoriteId(kind, p.universityId, entityKey),
+    kind,
+    universityId: p.universityId,
+    universityName: p.universityName,
+    city: p.city,
+    country: p.country,
+    longitude,
+    latitude,
+    label,
+    createdAt: new Date().toISOString()
+  };
+}
+
+function getPointSizeScale(size: PointSize) {
+  if (size === "small") return 0.78;
+  if (size === "large") return 1.24;
+  return 1;
+}
+
+function AppShell({ children }: { children: React.ReactNode }) {
+  return <div className="app">{children}</div>;
 }
 
 function PreferenceDialog({ onClose }: { onClose: () => void }) {
@@ -275,15 +281,38 @@ export function App() {
   const [source, setSource] = useState("");
   const [year, setYear] = useState("");
   const [subject, setSubject] = useState("");
-  const [mode, setMode] = useState<Mode>(getInitialMode);
+  const [mode] = useState<Mode>("rankings");
   const [mapStyle, setMapStyle] = useState<MapStyleId>("liberty");
   const [data, setData] = useState<RankingFeatureCollection | null>(null);
   const [selected, setSelected] = useState<RankingFeature | null>(null);
+  const [isDetailsCollapsed, setIsDetailsCollapsed] = useState(false);
   const [compareIds, setCompareIds] = useState<number[]>([]);
+  const [activeLeftPanel, setActiveLeftPanel] = useState<LeftPanel | null>(null);
+  const [isConfigOpen, setIsConfigOpen] = useState(false);
+  const [favorites, setFavorites] = useState<FavoriteItem[]>(() => {
+    const saved = localStorage.getItem(favoritesStorageKey);
+    if (!saved) return [];
+    try {
+      return JSON.parse(saved) as FavoriteItem[];
+    } catch {
+      return [];
+    }
+  });
+  const [showFavoritesLayer, setShowFavoritesLayer] = useState(false);
+  const [showUniversityLabels, setShowUniversityLabels] = useState(false);
+  const [pointSize, setPointSize] = useState<PointSize>("normal");
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const debouncedQuery = useDebouncedValue(query);
+
+  useEffect(() => {
+    localStorage.setItem(favoritesStorageKey, JSON.stringify(favorites));
+  }, [favorites]);
+
+  useEffect(() => {
+    if (selected) setIsDetailsCollapsed(false);
+  }, [selected]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -322,7 +351,6 @@ export function App() {
     const controller = new AbortController();
     setLoading(true);
     setError("");
-    setSelected(null);
 
     const loader =
       mode === "rankings"
@@ -363,6 +391,51 @@ export function App() {
     setSelected(feature);
   }, []);
 
+  const toggleFavorite = useCallback((item: FavoriteItem) => {
+    setFavorites((current) =>
+      current.some((favorite) => favorite.id === item.id)
+        ? current.filter((favorite) => favorite.id !== item.id)
+        : [...current, item]
+    );
+  }, []);
+
+  const isFavorite = useCallback(
+    (kind: FavoriteKind, universityId: number, entityKey: string) =>
+      favorites.some(
+        (favorite) => favorite.id === getFavoriteId(kind, universityId, entityKey)
+      ),
+    [favorites]
+  );
+
+  const favoriteFeatures = useMemo(() => {
+    const byUniversity = new Map<number, FavoriteItem>();
+    favorites.forEach((favorite) => {
+      if (!byUniversity.has(favorite.universityId)) {
+        byUniversity.set(favorite.universityId, favorite);
+      }
+    });
+
+    return [...byUniversity.values()].map(
+      (favorite) =>
+        ({
+          type: "Feature",
+          geometry: {
+            type: "Point",
+            coordinates: [favorite.longitude, favorite.latitude]
+          },
+          properties: {
+            universityId: favorite.universityId,
+            universityName: favorite.universityName,
+            city: favorite.city,
+            country: favorite.country,
+            sourceName: "Favorites",
+            sourceUrl: "",
+            attribution: "User favorites"
+          }
+        }) as RankingFeature
+    );
+  }, [favorites]);
+
   const stats = useMemo(() => {
     const countries = new Set(filteredFeatures.map((f) => f.properties.country));
     const bestRank = filteredFeatures.reduce<number | null>((best, feature) => {
@@ -379,142 +452,225 @@ export function App() {
     );
   };
 
+  const toggleLeftPanel = (panel: LeftPanel) => {
+    setActiveLeftPanel((current) => (current === panel ? null : panel));
+  };
+
+  const selectFavorite = useCallback(
+    (favorite: FavoriteItem) => {
+      const feature = data?.features.find(
+        (item) => item.properties.universityId === favorite.universityId
+      );
+      if (feature) setSelected(feature);
+    },
+    [data]
+  );
+
   return (
-    <AppShell
-      title="University Rankings Map"
-      subtitle="Explore global university rankings by source, year, and subject"
-    >
+    <AppShell>
       <main className="workspace">
-        <aside className="sidebar">
-          <section className="panel controls">
-            <div className="panel-title">
-              <SlidersHorizontal size={18} />
-              <h2>Filters</h2>
-            </div>
-
-            <div className="segmented" aria-label="Map mode">
-              <button
-                className={mode === "rankings" ? "active" : ""}
-                onClick={() => setMode("rankings")}
-              >
-                Rankings
-              </button>
-              <button
-                className={mode === "strength" ? "active" : ""}
-                onClick={() => setMode("strength")}
-              >
-                Subject Strength
-              </button>
-            </div>
-
-            <label>
-              Source
-              <select value={source} onChange={(event) => setSource(event.target.value)}>
-                {availabilities.map((item) => (
-                  <option key={item.source.id} value={item.source.id}>
-                    {item.source.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <label>
-              Year
-              <select value={year} onChange={(event) => setYear(event.target.value)}>
-                {years.map((value) => (
-                  <option key={value} value={value}>
-                    {value}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            {mode === "rankings" && (
-              <label>
-                Subject
-                <select
-                  value={subject}
-                  onChange={(event) => setSubject(event.target.value)}
-                >
-                  {subjects.map((value) => (
-                    <option key={value} value={value}>
-                      {value}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            )}
-
-            <label>
-              Map style
-              <div className="select-wrap">
-                <select
-                  value={mapStyle}
-                  onChange={(event) => setMapStyle(event.target.value as MapStyleId)}
-                >
-                  {mapStyles.map((style) => (
-                    <option key={style.id} value={style.id}>
-                      {style.label}
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown size={16} />
-              </div>
-            </label>
-
-            <label>
-              Search
-              <div className="searchbox">
-                <Search size={16} />
-                <input
-                  value={query}
-                  onChange={(event) => setQuery(event.target.value)}
-                  placeholder="University, city, country"
-                />
-              </div>
-            </label>
-          </section>
-
-          {query.trim() && (
-            <SearchResults
-              features={filteredFeatures.slice(0, 8)}
-              isSettling={query !== debouncedQuery}
-              onSelect={handleSelectFeature}
-            />
-          )}
-
-          <section className="metric-grid">
-            <Metric icon={<Building2 size={18} />} label="Universities" value={stats.count} />
-            <Metric icon={<Globe2 size={18} />} label="Countries" value={stats.countries} />
-            <Metric
-              icon={<Trophy size={18} />}
-              label="Best rank"
-              value={stats.bestRank ?? "n/a"}
-            />
-          </section>
-
-          <section className="panel">
-            <div className="panel-title">
-              <Info size={18} />
-              <h2>Data</h2>
-            </div>
-            <p className="muted">
-              This clone reads the same public JSON endpoints exposed by the
-              demonstration site. Ranking ownership remains with each provider.
-            </p>
-            {activeAvailability && (
-              <a
-                className="provider"
-                href={activeAvailability.source.url}
-                target="_blank"
-                rel="noreferrer"
-              >
-                {activeAvailability.source.attribution}
-                <ExternalLink size={14} />
-              </a>
-            )}
-          </section>
+        <aside className="map-nav" aria-label="Map tools">
+          <div className="map-nav-brand">
+            <img className="map-nav-logo" src={mascotLogo} alt="UniMap Condor" />
+          </div>
+          <button
+            className={`map-nav-item ${activeLeftPanel === "filters" ? "active" : ""}`}
+            type="button"
+            aria-pressed={activeLeftPanel === "filters"}
+            onClick={() => toggleLeftPanel("filters")}
+          >
+            <span className="map-nav-icon">
+              <SlidersHorizontal size={25} />
+            </span>
+            <span>Filter</span>
+          </button>
+          <button
+            className={`map-nav-item ${activeLeftPanel === "saved" ? "active" : ""}`}
+            type="button"
+            aria-pressed={activeLeftPanel === "saved"}
+            onClick={() => toggleLeftPanel("saved")}
+          >
+            <span className="map-nav-icon">
+              <Star
+                size={25}
+                fill={activeLeftPanel === "saved" ? "currentColor" : "none"}
+              />
+            </span>
+            <span>Saved</span>
+          </button>
+          <button
+            className={`map-nav-item ${activeLeftPanel === "compare" ? "active" : ""}`}
+            type="button"
+            aria-pressed={activeLeftPanel === "compare"}
+            onClick={() => toggleLeftPanel("compare")}
+          >
+            <span className="map-nav-icon">
+              <ArrowLeftRight size={25} />
+            </span>
+            <span>Compare</span>
+          </button>
+          <button
+            className={`map-nav-item ${activeLeftPanel === "view" ? "active" : ""}`}
+            type="button"
+            aria-pressed={activeLeftPanel === "view"}
+            onClick={() => toggleLeftPanel("view")}
+          >
+            <span className="map-nav-icon">
+              <Layers3 size={25} />
+            </span>
+            <span>View</span>
+          </button>
+          <button
+            className="map-nav-item map-nav-preference"
+            type="button"
+            onClick={() => setIsConfigOpen(true)}
+          >
+            <span className="map-nav-icon">
+              <Settings2 size={25} />
+            </span>
+            <span>Prefs</span>
+          </button>
         </aside>
+
+        {isConfigOpen && <PreferenceDialog onClose={() => setIsConfigOpen(false)} />}
+
+        {activeLeftPanel && (
+          <div className="drawer-shell">
+            <aside className="sidebar tool-drawer">
+              {activeLeftPanel === "filters" && (
+                <>
+                  <section className="panel controls">
+                    <div className="panel-title">
+                      <SlidersHorizontal size={18} />
+                      <h2>Filters</h2>
+                    </div>
+
+                    <label>
+                      Search
+                      <div className="searchbox">
+                        <Search size={16} />
+                        <input
+                          value={query}
+                          onChange={(event) => setQuery(event.target.value)}
+                          placeholder="University, city, country"
+                        />
+                      </div>
+                    </label>
+
+                    <label>
+                      Source
+                      <select value={source} onChange={(event) => setSource(event.target.value)}>
+                        {availabilities.map((item) => (
+                          <option key={item.source.id} value={item.source.id}>
+                            {item.source.name}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+
+                    <label>
+                      Year
+                      <select value={year} onChange={(event) => setYear(event.target.value)}>
+                        {years.map((value) => (
+                          <option key={value} value={value}>
+                            {value}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+
+                    <label>
+                      Subject
+                      <select
+                        value={subject}
+                        onChange={(event) => setSubject(event.target.value)}
+                      >
+                        {subjects.map((value) => (
+                          <option key={value} value={value}>
+                            {value}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+
+                  </section>
+
+                  {query.trim() && (
+                    <SearchResults
+                      features={filteredFeatures.slice(0, 8)}
+                      isSettling={query !== debouncedQuery}
+                      onSelect={handleSelectFeature}
+                    />
+                  )}
+
+                  <section className="metric-grid">
+                    <Metric icon={<Building2 size={18} />} label="Universities" value={stats.count} />
+                    <Metric icon={<Globe2 size={18} />} label="Countries" value={stats.countries} />
+                    <Metric
+                      icon={<Trophy size={18} />}
+                      label="Best rank"
+                      value={stats.bestRank ?? "n/a"}
+                    />
+                  </section>
+
+                  <RankingListPanel
+                    features={filteredFeatures}
+                    mode={mode}
+                    onSelect={handleSelectFeature}
+                  />
+
+                  {activeAvailability && (
+                    <div className="source-footer">
+                      <span>Source:</span>
+                      <a
+                        className="provider"
+                        href={activeAvailability.source.url}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        {activeAvailability.source.attribution}
+                        <ExternalLink size={14} />
+                      </a>
+                    </div>
+                  )}
+                </>
+              )}
+
+              {activeLeftPanel === "saved" && (
+                <SavedPanel favorites={favorites} onSelect={selectFavorite} />
+              )}
+
+              {activeLeftPanel === "compare" && (
+                <ComparePanel
+                  ids={compareIds}
+                  onRemove={(id) => setCompareIds((ids) => ids.filter((value) => value !== id))}
+                />
+              )}
+
+              {activeLeftPanel === "view" && (
+                <ViewPanel
+                  mapStyle={mapStyle}
+                  onMapStyleChange={setMapStyle}
+                  pointSize={pointSize}
+                  onPointSizeChange={setPointSize}
+                  showFavoritesLayer={showFavoritesLayer}
+                  onShowFavoritesLayerChange={setShowFavoritesLayer}
+                  showUniversityLabels={showUniversityLabels}
+                  onShowUniversityLabelsChange={setShowUniversityLabels}
+                />
+              )}
+            </aside>
+            <button
+              className="drawer-collapse"
+              type="button"
+              aria-label="Collapse side panel"
+              title="Collapse side panel"
+              onClick={() => setActiveLeftPanel(null)}
+            >
+              <ChevronDown size={18} />
+            </button>
+          </div>
+        )}
 
         <section className="map-stage">
           {error && <div className="banner error">{error}</div>}
@@ -526,6 +682,10 @@ export function App() {
           )}
           <RankingMap
             features={filteredFeatures}
+            favoriteFeatures={favoriteFeatures}
+            showFavoritesLayer={showFavoritesLayer}
+            showUniversityLabels={showUniversityLabels}
+            pointSize={pointSize}
             mode={mode}
             mapStyle={mapStyle}
             selectedId={selected?.properties.universityId}
@@ -533,23 +693,41 @@ export function App() {
           />
         </section>
 
-        <aside className="details">
-          {selected ? (
-            <UniversityCard
-              feature={selected}
-              mode={mode}
-              onClose={() => setSelected(null)}
-              onCompare={() => addToCompare(selected.properties.universityId)}
-            />
-          ) : (
-            <EmptySelection />
-          )}
+        {selected && !isDetailsCollapsed && (
+          <div className="details-shell">
+            <button
+              className="details-collapse"
+              type="button"
+              aria-label="Collapse details panel"
+              title="Collapse details panel"
+              onClick={() => setIsDetailsCollapsed(true)}
+            >
+              <ChevronDown size={18} />
+            </button>
+            <aside className="details">
+              <UniversityCard
+                feature={selected}
+                mode={mode}
+                onClose={() => setSelected(null)}
+                onCompare={() => addToCompare(selected.properties.universityId)}
+                isFavorite={isFavorite}
+                onToggleFavorite={toggleFavorite}
+              />
+            </aside>
+          </div>
+        )}
 
-          <ComparePanel
-            ids={compareIds}
-            onRemove={(id) => setCompareIds((ids) => ids.filter((value) => value !== id))}
-          />
-        </aside>
+        {selected && isDetailsCollapsed && (
+          <button
+            className="details-peek"
+            type="button"
+            aria-label="Open details panel"
+            title="Open details panel"
+            onClick={() => setIsDetailsCollapsed(false)}
+          >
+            <ChevronDown size={18} />
+          </button>
+        )}
       </main>
     </AppShell>
   );
@@ -618,14 +796,199 @@ function SearchResults({
   );
 }
 
+function RankingListPanel({
+  features,
+  mode,
+  onSelect
+}: {
+  features: RankingFeature[];
+  mode: Mode;
+  onSelect: (feature: RankingFeature) => void;
+}) {
+  const rows = useMemo(
+    () =>
+      [...features].sort((a, b) => {
+        const aRank = a.properties.rankValue ?? a.properties.topSubjectRankValue ?? Infinity;
+        const bRank = b.properties.rankValue ?? b.properties.topSubjectRankValue ?? Infinity;
+        return aRank - bRank;
+      }),
+    [features]
+  );
+
+  return (
+    <details className="ranking-list-panel">
+      <summary>
+        <div>
+          <strong>All school rankings</strong>
+          <span>{features[0]?.properties.sourceName ?? "Current source"}</span>
+        </div>
+        <ChevronDown size={16} />
+      </summary>
+      <div className="ranking-list">
+        {rows.map((feature) => {
+          const p = feature.properties;
+          const rank =
+            mode === "rankings"
+              ? p.sourceRankValue ?? p.rankValue ?? "n/a"
+              : p.topSubjectSourceRankValue ?? p.topSubjectRankValue ?? "n/a";
+          return (
+            <button
+              key={`${p.universityId}-${p.subject ?? p.topSubject ?? "rank"}`}
+              className="ranking-list-item"
+              type="button"
+              onClick={() => onSelect(feature)}
+            >
+              <strong>{rank}</strong>
+              <span>{p.universityName}</span>
+            </button>
+          );
+        })}
+      </div>
+    </details>
+  );
+}
+
+function ViewPanel({
+  mapStyle,
+  onMapStyleChange,
+  pointSize,
+  onPointSizeChange,
+  showFavoritesLayer,
+  onShowFavoritesLayerChange,
+  showUniversityLabels,
+  onShowUniversityLabelsChange
+}: {
+  mapStyle: MapStyleId;
+  onMapStyleChange: (value: MapStyleId) => void;
+  pointSize: PointSize;
+  onPointSizeChange: (value: PointSize) => void;
+  showFavoritesLayer: boolean;
+  onShowFavoritesLayerChange: (value: boolean) => void;
+  showUniversityLabels: boolean;
+  onShowUniversityLabelsChange: (value: boolean) => void;
+}) {
+  return (
+    <section className="panel controls view-panel">
+      <div className="panel-title">
+        <Layers3 size={18} />
+        <h2>View</h2>
+      </div>
+
+      <label>
+        Map style
+        <div className="select-wrap">
+          <select
+            value={mapStyle}
+            onChange={(event) => onMapStyleChange(event.target.value as MapStyleId)}
+          >
+            {mapStyles.map((style) => (
+              <option key={style.id} value={style.id}>
+                {style.label}
+              </option>
+            ))}
+          </select>
+          <ChevronDown size={16} />
+        </div>
+      </label>
+
+      <label>
+        Point size
+        <div className="segmented-control">
+          {(["small", "normal", "large"] as PointSize[]).map((value) => (
+            <button
+              key={value}
+              className={pointSize === value ? "active" : ""}
+              type="button"
+              onClick={() => onPointSizeChange(value)}
+            >
+              {value}
+            </button>
+          ))}
+        </div>
+      </label>
+
+      <label className="switch-row">
+        <span>
+          <strong>Saved stars</strong>
+          <em>Show followed schools on the map.</em>
+        </span>
+        <input
+          type="checkbox"
+          checked={showFavoritesLayer}
+          onChange={(event) => onShowFavoritesLayerChange(event.target.checked)}
+        />
+      </label>
+
+      <label className="switch-row">
+        <span>
+          <strong>School labels</strong>
+          <em>Display university names near points.</em>
+        </span>
+        <input
+          type="checkbox"
+          checked={showUniversityLabels}
+          onChange={(event) => onShowUniversityLabelsChange(event.target.checked)}
+        />
+      </label>
+    </section>
+  );
+}
+
+function SavedPanel({
+  favorites,
+  onSelect
+}: {
+  favorites: FavoriteItem[];
+  onSelect: (favorite: FavoriteItem) => void;
+}) {
+  return (
+    <section className="panel saved-panel">
+      <div className="panel-title">
+        <Star size={18} />
+        <h2>Saved</h2>
+      </div>
+      {!favorites.length ? (
+        <p className="muted">Star a university, subject, or advisor to show it here.</p>
+      ) : (
+        <div className="saved-list">
+          {favorites.map((favorite) => (
+            <button
+              key={favorite.id}
+              className="saved-item"
+              type="button"
+              onClick={() => onSelect(favorite)}
+            >
+              <Star size={17} fill="currentColor" />
+              <span>
+                <strong>{favorite.label}</strong>
+                <em>
+                  {favorite.kind} · {favorite.universityName}
+                </em>
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
 function RankingMap({
   features,
+  favoriteFeatures,
+  showFavoritesLayer,
+  showUniversityLabels,
+  pointSize,
   mode,
   mapStyle,
   selectedId,
   onSelect
 }: {
   features: RankingFeature[];
+  favoriteFeatures: RankingFeature[];
+  showFavoritesLayer: boolean;
+  showUniversityLabels: boolean;
+  pointSize: PointSize;
   mode: Mode;
   mapStyle: MapStyleId;
   selectedId?: number;
@@ -634,12 +997,32 @@ function RankingMap({
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
   const featureRef = useRef<RankingFeature[]>([]);
+  const favoriteFeatureRef = useRef<RankingFeature[]>([]);
   const modeRef = useRef<Mode>(mode);
   const mapStyleRef = useRef<MapStyleId>(mapStyle);
+  const showFavoritesLayerRef = useRef(showFavoritesLayer);
+  const showUniversityLabelsRef = useRef(showUniversityLabels);
+  const pointSizeRef = useRef<PointSize>(pointSize);
 
   useEffect(() => {
     featureRef.current = features;
   }, [features]);
+
+  useEffect(() => {
+    favoriteFeatureRef.current = favoriteFeatures;
+  }, [favoriteFeatures]);
+
+  useEffect(() => {
+    showFavoritesLayerRef.current = showFavoritesLayer;
+  }, [showFavoritesLayer]);
+
+  useEffect(() => {
+    showUniversityLabelsRef.current = showUniversityLabels;
+  }, [showUniversityLabels]);
+
+  useEffect(() => {
+    pointSizeRef.current = pointSize;
+  }, [pointSize]);
 
   useEffect(() => {
     modeRef.current = mode;
@@ -657,13 +1040,6 @@ function RankingMap({
     });
 
     map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
-    map.addControl(
-      new maplibregl.AttributionControl({
-        compact: true,
-        customAttribution: "OpenStreetMap contributors"
-      }),
-      "bottom-right"
-    );
 
     function paintColorExpression() {
       return [
@@ -672,6 +1048,28 @@ function RankingMap({
         "#111827",
         modeRef.current === "strength" ? "#059669" : "#2563eb"
       ] as maplibregl.ExpressionSpecification;
+    }
+
+    function pointRadiusExpression() {
+      const scale = getPointSizeScale(pointSizeRef.current);
+      return [
+        "interpolate",
+        ["linear"],
+        ["coalesce", ["get", "rankValue"], ["get", "topSubjectRankValue"], 500],
+        1,
+        9 * scale,
+        100,
+        7 * scale,
+        500,
+        5 * scale,
+        1000,
+        4 * scale
+      ] as maplibregl.ExpressionSpecification;
+    }
+
+    function clusterRadiusExpression() {
+      const scale = getPointSizeScale(pointSizeRef.current);
+      return ["step", ["get", "point_count"], 18 * scale, 50, 24 * scale, 150, 32 * scale] as maplibregl.ExpressionSpecification;
     }
 
     function ensureRankingLayers() {
@@ -685,6 +1083,13 @@ function RankingMap({
         });
       }
 
+      if (!map.getSource("favorites")) {
+        map.addSource("favorites", {
+          type: "geojson",
+          data: { type: "FeatureCollection", features: [] }
+        });
+      }
+
       if (!map.getLayer("clusters")) {
         map.addLayer({
           id: "clusters",
@@ -693,7 +1098,7 @@ function RankingMap({
           filter: ["has", "point_count"],
           paint: {
             "circle-color": "#0f172a",
-            "circle-radius": ["step", ["get", "point_count"], 18, 50, 24, 150, 32],
+            "circle-radius": clusterRadiusExpression(),
             "circle-opacity": 0.86
           }
         });
@@ -721,22 +1126,53 @@ function RankingMap({
           filter: ["!", ["has", "point_count"]],
           paint: {
             "circle-color": paintColorExpression(),
-            "circle-radius": [
-              "interpolate",
-              ["linear"],
-              ["coalesce", ["get", "rankValue"], ["get", "topSubjectRankValue"], 500],
-              1,
-              9,
-              100,
-              7,
-              500,
-              5,
-              1000,
-              4
-            ],
+            "circle-radius": pointRadiusExpression(),
             "circle-stroke-color": "#ffffff",
             "circle-stroke-width": 1.5,
             "circle-opacity": 0.92
+          }
+        });
+      }
+
+      if (!map.getLayer("university-labels")) {
+        map.addLayer({
+          id: "university-labels",
+          type: "symbol",
+          source: "rankings",
+          filter: ["!", ["has", "point_count"]],
+          layout: {
+            "text-field": ["get", "universityName"],
+            "text-size": ["interpolate", ["linear"], ["zoom"], 2, 10, 6, 12],
+            "text-offset": [0, 1.05],
+            "text-anchor": "top",
+            "text-max-width": 12,
+            visibility: showUniversityLabelsRef.current ? "visible" : "none"
+          },
+          paint: {
+            "text-color": "#172033",
+            "text-halo-color": "#ffffff",
+            "text-halo-width": 1.4
+          }
+        });
+      }
+
+      if (!map.getLayer("favorite-stars")) {
+        map.addLayer({
+          id: "favorite-stars",
+          type: "symbol",
+          source: "favorites",
+          layout: {
+            "text-allow-overlap": true,
+            "text-field": "★",
+            "text-ignore-placement": true,
+            "text-offset": [0, -0.9],
+            "text-size": ["interpolate", ["linear"], ["zoom"], 1, 18, 6, 26],
+            visibility: showFavoritesLayerRef.current ? "visible" : "none"
+          },
+          paint: {
+            "text-color": "#f59e0b",
+            "text-halo-color": "#ffffff",
+            "text-halo-width": 2
           }
         });
       }
@@ -745,6 +1181,11 @@ function RankingMap({
       rankingsSource.setData({
         type: "FeatureCollection",
         features: featureRef.current
+      });
+      const favoritesSource = map.getSource("favorites") as maplibregl.GeoJSONSource;
+      favoritesSource.setData({
+        type: "FeatureCollection",
+        features: favoriteFeatureRef.current
       });
     }
 
@@ -757,6 +1198,18 @@ function RankingMap({
     });
 
     map.on("click", "points", (event) => {
+      const id = Number(event.features?.[0]?.properties?.universityId);
+      const feature = featureRef.current.find((item) => item.properties.universityId === id);
+      if (feature) onSelect(feature);
+    });
+
+    map.on("click", "favorite-stars", (event) => {
+      const id = Number(event.features?.[0]?.properties?.universityId);
+      const feature = featureRef.current.find((item) => item.properties.universityId === id);
+      if (feature) onSelect(feature);
+    });
+
+    map.on("click", "university-labels", (event) => {
       const id = Number(event.features?.[0]?.properties?.universityId);
       const feature = featureRef.current.find((item) => item.properties.universityId === id);
       if (feature) onSelect(feature);
@@ -776,6 +1229,18 @@ function RankingMap({
       map.getCanvas().style.cursor = "pointer";
     });
     map.on("mouseleave", "points", () => {
+      map.getCanvas().style.cursor = "";
+    });
+    map.on("mouseenter", "favorite-stars", () => {
+      map.getCanvas().style.cursor = "pointer";
+    });
+    map.on("mouseleave", "favorite-stars", () => {
+      map.getCanvas().style.cursor = "";
+    });
+    map.on("mouseenter", "university-labels", () => {
+      map.getCanvas().style.cursor = "pointer";
+    });
+    map.on("mouseleave", "university-labels", () => {
       map.getCanvas().style.cursor = "";
     });
 
@@ -806,6 +1271,83 @@ function RankingMap({
 
   useEffect(() => {
     const map = mapRef.current;
+    if (!map) return;
+    const update = () => {
+      const source = map.getSource("favorites") as maplibregl.GeoJSONSource | undefined;
+      source?.setData({ type: "FeatureCollection", features: favoriteFeatures });
+    };
+    map.isStyleLoaded() ? update() : map.once("style.load", update);
+  }, [favoriteFeatures]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    const update = () => {
+      if (map.getLayer("favorite-stars")) {
+        map.setLayoutProperty(
+          "favorite-stars",
+          "visibility",
+          showFavoritesLayer ? "visible" : "none"
+        );
+      }
+    };
+    map.isStyleLoaded() ? update() : map.once("style.load", update);
+  }, [showFavoritesLayer]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    const update = () => {
+      if (map.getLayer("university-labels")) {
+        map.setLayoutProperty(
+          "university-labels",
+          "visibility",
+          showUniversityLabels ? "visible" : "none"
+        );
+      }
+    };
+    map.isStyleLoaded() ? update() : map.once("style.load", update);
+  }, [showUniversityLabels]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    const scale = getPointSizeScale(pointSize);
+    const pointRadius = [
+      "interpolate",
+      ["linear"],
+      ["coalesce", ["get", "rankValue"], ["get", "topSubjectRankValue"], 500],
+      1,
+      9 * scale,
+      100,
+      7 * scale,
+      500,
+      5 * scale,
+      1000,
+      4 * scale
+    ] as maplibregl.ExpressionSpecification;
+    const clusterRadius = [
+      "step",
+      ["get", "point_count"],
+      18 * scale,
+      50,
+      24 * scale,
+      150,
+      32 * scale
+    ] as maplibregl.ExpressionSpecification;
+    const update = () => {
+      if (map.getLayer("points")) {
+        map.setPaintProperty("points", "circle-radius", pointRadius);
+      }
+      if (map.getLayer("clusters")) {
+        map.setPaintProperty("clusters", "circle-radius", clusterRadius);
+      }
+    };
+    map.isStyleLoaded() ? update() : map.once("style.load", update);
+  }, [pointSize]);
+
+  useEffect(() => {
+    const map = mapRef.current;
     if (!map?.getLayer("points")) return;
     map.setPaintProperty("points", "circle-color", [
       "case",
@@ -831,15 +1373,20 @@ function UniversityCard({
   feature,
   mode,
   onClose,
-  onCompare
+  onCompare,
+  isFavorite,
+  onToggleFavorite
 }: {
   feature: RankingFeature;
   mode: Mode;
   onClose: () => void;
   onCompare: () => void;
+  isFavorite: (kind: FavoriteKind, universityId: number, entityKey: string) => boolean;
+  onToggleFavorite: (item: FavoriteItem) => void;
 }) {
   const p = feature.properties;
   const [tab, setTab] = useState<DetailTab>("overview");
+  const schoolFavorite = createFavoriteItem(feature, "school", p.universityName);
   return (
     <section className="panel selected-card">
       <button className="icon-button close" aria-label="Close details" onClick={onClose}>
@@ -849,7 +1396,14 @@ function UniversityCard({
         <MapPin size={15} />
         {p.city}, {p.country}
       </div>
-      <h2>{p.universityName}</h2>
+      <div className="selected-title-row">
+        <h2>{p.universityName}</h2>
+        <FavoriteButton
+          active={isFavorite("school", p.universityId, p.universityName)}
+          label="学校"
+          onClick={() => onToggleFavorite(schoolFavorite)}
+        />
+      </div>
       <p className="muted">{p.rankingGroundTruthUniversityName ?? p.universityName}</p>
 
       <div className="detail-tabs" role="tablist" aria-label="University detail sections">
@@ -868,7 +1422,13 @@ function UniversityCard({
       {tab === "rankings" && <RankingsPanel feature={feature} mode={mode} />}
       {tab === "research" && <ResearchPanel feature={feature} />}
       {tab === "faculty" && <FacultyPanel feature={feature} />}
-      {tab === "recommendations" && <RecommendationsPanel feature={feature} />}
+      {tab === "recommendations" && (
+        <RecommendationsPanel
+          feature={feature}
+          isFavorite={isFavorite}
+          onToggleFavorite={onToggleFavorite}
+        />
+      )}
       {tab === "community" && <CommunityPanel feature={feature} />}
 
       <div className="button-row">
@@ -891,13 +1451,15 @@ function useOpenDataProfile(feature: RankingFeature) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const controller = new AbortController();
+    let isActive = true;
     setLoading(true);
     api
-      .getOpenDataProfile(p.universityName, controller.signal)
-      .then(setProfile)
+      .getOpenDataProfile(p.universityName)
+      .then((nextProfile) => {
+        if (isActive) setProfile(nextProfile);
+      })
       .catch((err) => {
-        if (err.name !== "AbortError") {
+        if (isActive && err.name !== "AbortError") {
           setProfile({
             status: "error",
             aliases: [],
@@ -907,9 +1469,13 @@ function useOpenDataProfile(feature: RankingFeature) {
           });
         }
       })
-      .finally(() => setLoading(false));
+      .finally(() => {
+        if (isActive) setLoading(false);
+      });
 
-    return () => controller.abort();
+    return () => {
+      isActive = false;
+    };
   }, [p.universityName]);
 
   return { profile, loading };
@@ -992,6 +1558,29 @@ function RankingsPanel({ feature, mode }: { feature: RankingFeature; mode: Mode 
       )}
       <ExternalChip href={p.sourceUrl} label={`${p.sourceName} source`} />
     </div>
+  );
+}
+
+function FavoriteButton({
+  active,
+  label,
+  onClick
+}: {
+  active: boolean;
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      className={`favorite-chip ${active ? "active" : ""}`}
+      type="button"
+      aria-label={active ? `取消关注${label}` : `关注${label}`}
+      aria-pressed={active}
+      title={active ? `取消关注${label}` : `关注${label}`}
+      onClick={onClick}
+    >
+      <Star size={14} fill={active ? "currentColor" : "none"} />
+    </button>
   );
 }
 
@@ -1209,23 +1798,37 @@ function FacultyDirectoryList({
   );
 }
 
-function RecommendationsPanel({ feature }: { feature: RankingFeature }) {
+function RecommendationsPanel({
+  feature,
+  isFavorite,
+  onToggleFavorite
+}: {
+  feature: RankingFeature;
+  isFavorite: (kind: FavoriteKind, universityId: number, entityKey: string) => boolean;
+  onToggleFavorite: (item: FavoriteItem) => void;
+}) {
   const p = feature.properties;
   const [advisors, setAdvisors] = useState<AdvisorCard[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const controller = new AbortController();
+    let isActive = true;
     setLoading(true);
     api
-      .getAdvisorCards(p.universityName, controller.signal)
-      .then(setAdvisors)
-      .catch((err) => {
-        if (err.name !== "AbortError") setAdvisors([]);
+      .getAdvisorCards(p.universityName)
+      .then((items) => {
+        if (isActive) setAdvisors(items);
       })
-      .finally(() => setLoading(false));
+      .catch((err) => {
+        if (isActive && err.name !== "AbortError") setAdvisors([]);
+      })
+      .finally(() => {
+        if (isActive) setLoading(false);
+      });
 
-    return () => controller.abort();
+    return () => {
+      isActive = false;
+    };
   }, [p.universityName]);
 
   return (
@@ -1239,14 +1842,32 @@ function RecommendationsPanel({ feature }: { feature: RankingFeature }) {
       ) : null}
       <div className="advisor-list">
         {advisors.map((advisor) => (
-          <AdvisorItem key={advisor.id} advisor={advisor} />
+          <AdvisorItem
+            key={advisor.id}
+            advisor={advisor}
+            feature={feature}
+            isFavorite={isFavorite}
+            onToggleFavorite={onToggleFavorite}
+          />
         ))}
       </div>
     </div>
   );
 }
 
-function AdvisorItem({ advisor }: { advisor: AdvisorCard }) {
+function AdvisorItem({
+  advisor,
+  feature,
+  isFavorite,
+  onToggleFavorite
+}: {
+  advisor: AdvisorCard;
+  feature: RankingFeature;
+  isFavorite: (kind: FavoriteKind, universityId: number, entityKey: string) => boolean;
+  onToggleFavorite: (item: FavoriteItem) => void;
+}) {
+  const p = feature.properties;
+  const advisorFavorite = createFavoriteItem(feature, "advisor", advisor.fullName, advisor.id);
   return (
     <details className="advisor-card">
       <summary className="advisor-card-header">
@@ -1294,11 +1915,16 @@ function AdvisorItem({ advisor }: { advisor: AdvisorCard }) {
           )}
         </div>
 
-        {advisor.profileUrl && (
-          <div className="advisor-footer">
+        <div className="advisor-footer">
+          <FavoriteButton
+            active={isFavorite("advisor", p.universityId, advisor.id)}
+            label="导师"
+            onClick={() => onToggleFavorite(advisorFavorite)}
+          />
+          {advisor.profileUrl && (
             <ExternalChip href={advisor.profileUrl} label="Profile" />
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </details>
   );

@@ -66,3 +66,38 @@ export type OpenDataProfile = {
   relatedInstitutions: Array<{ name: string; relationship?: string }>;
   message?: string;
 };
+
+export type AdvisorCard = {
+  id: string;
+  fullName: string;
+  institutionName: string;
+  institutionAliases: string[];
+  department?: string;
+  lab?: string;
+  title?: string;
+  priority?: string;
+  priorityScore?: number;
+  fitSummary: string;
+  contactAngle?: string;
+  researchAreas: string[];
+  targetPrograms: string[];
+  politicalSensitivity?: string;
+  recruitingSignal?: string;
+  outreachStatus?: string;
+  profileUrl?: string;
+  sourceLabel?: string;
+};
+
+export type FacultyDirectoryEntry = {
+  id: string;
+  fullName: string;
+  institutionName: string;
+  institutionAliases: string[];
+  facultyName: string;
+  departmentName: string;
+  role?: string;
+  email?: string;
+  profileUrl?: string;
+  expertise: string[];
+  sourceUrl: string;
+};

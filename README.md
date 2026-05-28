@@ -18,7 +18,10 @@ The name comes from the condor: a large animal built for long-distance flight an
   - Overview: city, country, establishment year, aliases, ROR/Wikidata/Wikipedia links.
   - Rankings: rank, subject, source attribution, subject-strength bars.
   - Research: OpenAlex works, citations, h-index, recent citedness, and topic signals.
+  - Faculty: institution, faculty/school, department, lab, and program-level structure.
+  - Recommendations: advisor-fit notes linked to the selected university, backed by Supabase with a local seed fallback.
   - Community: outbound Reddit and GTER search links.
+- Personal preference profile entry for school-selection intent.
 - No Google Places API dependency. Google Maps is provided as a user-controlled outbound link only.
 
 ## Data Sources
@@ -58,6 +61,20 @@ Build:
 ```bash
 npm run build
 ```
+
+## Supabase Advisor Data
+
+The Faculty tab reads from Supabase when these variables are present:
+
+```bash
+cp .env.example .env
+```
+
+Fill in `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`, then apply the SQL files under `supabase/migrations`.
+
+The schema is intentionally split into institutions, programs, faculty profiles, affiliations, program-fit notes, and sources. That keeps it flexible for later adding departments, tuition, application deadlines, emails, labs, publications, funding signals, and application-status fields without flattening everything into one brittle table.
+
+If Supabase is not configured, the app falls back to the 15 Montreal advisor notes seeded from the local vault scan.
 
 ## Development Notes
 

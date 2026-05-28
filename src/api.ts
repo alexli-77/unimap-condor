@@ -1,14 +1,21 @@
 import type {
+  AdvisorCard,
+  FacultyDirectoryEntry,
   OpenDataProfile,
   RankingFeatureCollection,
   Source,
   SourceAvailability,
   UniversityDetail
 } from "./types";
+import { localFacultyDirectory } from "./localFacultyDirectory";
+import { localAdvisorCards } from "./localAdvisors";
+import { supabase } from "./supabase";
 
 const responseCache = new Map<string, unknown>();
 const universityCache = new Map<number, UniversityDetail>();
 const openDataCache = new Map<string, OpenDataProfile>();
+const advisorCache = new Map<string, AdvisorCard[]>();
+const facultyDirectoryCache = new Map<string, FacultyDirectoryEntry[]>();
 
 async function request<T>(path: string, signal?: AbortSignal): Promise<T> {
   if (!signal && responseCache.has(path)) {
@@ -38,6 +45,116 @@ async function getJson<T>(url: string, signal?: AbortSignal): Promise<T> {
 
 function uniq(values: Array<string | undefined>) {
   return [...new Set(values.filter(Boolean) as string[])];
+}
+
+function normalizeName(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+function advisorMatchesUniversity(advisor: AdvisorCard, universityName: string) {
+  const selected = normalizeName(universityName);
+  return [advisor.institutionName, ...advisor.institutionAliases].some((alias) => {
+    const normalized = normalizeName(alias);
+    return selected.includes(normalized) || normalized.includes(selected);
+  });
+}
+
+function directoryEntryMatchesUniversity(
+  entry: FacultyDirectoryEntry,
+  universityName: string
+) {
+  const selected = normalizeName(universityName);
+  return [entry.institutionName, ...entry.institutionAliases].some((alias) => {
+    const normalized = normalizeName(alias);
+    return selected.includes(normalized) || normalized.includes(selected);
+  });
+}
+
+function mapAdvisorRow(row: any): AdvisorCard {
+  return {
+    id: String(row.id),
+    fullName: row.full_name,
+    institutionName: row.institution_name,
+    institutionAliases: row.institution_aliases ?? [],
+    department: row.department ?? undefined,
+    lab: row.lab ?? undefined,
+    title: row.title ?? undefined,
+    priority: row.priority ?? undefined,
+    priorityScore: row.priority_score ?? undefined,
+    fitSummary: row.fit_summary ?? "",
+    contactAngle: row.contact_angle ?? undefined,
+    researchAreas: row.research_areas ?? [],
+    targetPrograms: row.target_programs ?? [],
+    politicalSensitivity: row.political_sensitivity ?? undefined,
+    recruitingSignal: row.recruiting_signal ?? undefined,
+    outreachStatus: row.outreach_status ?? undefined,
+    profileUrl: row.profile_url ?? undefined,
+    sourceLabel: row.source_label ?? undefined
+  };
+}
+
+function getLocalAdvisorCards(universityName: string) {
+  return localAdvisorCards
+    .filter((advisor) => advisorMatchesUniversity(advisor, universityName))
+    .sort((a, b) => (b.priorityScore ?? 0) - (a.priorityScore ?? 0));
+}
+
+function getFacultyDirectoryEntries(universityName: string) {
+  const cacheKey = normalizeName(universityName);
+  if (facultyDirectoryCache.has(cacheKey)) {
+    return facultyDirectoryCache.get(cacheKey)!;
+  }
+
+  const entries = localFacultyDirectory
+    .filter((entry) => directoryEntryMatchesUniversity(entry, universityName))
+    .sort((a, b) => a.fullName.localeCompare(b.fullName));
+
+  facultyDirectoryCache.set(cacheKey, entries);
+  return entries;
+}
+
+async function getAdvisorCards(
+  universityName: string,
+  signal?: AbortSignal
+): Promise<AdvisorCard[]> {
+  const cacheKey = normalizeName(universityName);
+  if (!signal && advisorCache.has(cacheKey)) {
+    return advisorCache.get(cacheKey)!;
+  }
+
+  if (!supabase) {
+    const localCards = getLocalAdvisorCards(universityName);
+    if (!signal) advisorCache.set(cacheKey, localCards);
+    return localCards;
+  }
+
+  try {
+    const query = supabase
+      .from("university_advisor_cards")
+      .select("*")
+      .eq("is_active", true)
+      .order("priority_score", { ascending: false });
+
+    const { data, error } = await (signal ? query.abortSignal(signal) : query);
+    if (error) throw error;
+
+    const cards = (data ?? [])
+      .map(mapAdvisorRow)
+      .filter((advisor) => advisorMatchesUniversity(advisor, universityName));
+
+    if (!signal) advisorCache.set(cacheKey, cards);
+    return cards;
+  } catch (error) {
+    console.warn("Falling back to local advisor cards", error);
+    const localCards = getLocalAdvisorCards(universityName);
+    if (!signal) advisorCache.set(cacheKey, localCards);
+    return localCards;
+  }
 }
 
 async function getOpenDataProfile(
@@ -153,5 +270,7 @@ export const api = {
     }
     return detail;
   },
-  getOpenDataProfile
+  getOpenDataProfile,
+  getAdvisorCards,
+  getFacultyDirectoryEntries
 };

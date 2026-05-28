@@ -11,15 +11,19 @@ import {
   Loader2,
   MapPin,
   Search,
+  Settings2,
   SlidersHorizontal,
   Star,
   Trophy,
+  UserRoundSearch,
   X
 } from "lucide-react";
 import maplibregl, { Map as MapLibreMap } from "maplibre-gl";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api } from "./api";
 import type {
+  AdvisorCard,
+  FacultyDirectoryEntry,
   OpenDataProfile,
   RankingFeature,
   RankingFeatureCollection,
@@ -29,6 +33,15 @@ import type {
 
 type Mode = "rankings" | "strength";
 type MapStyleId = "liberty" | "bright" | "positron";
+type PreferenceProfile = {
+  degreeLevel: string;
+  subjects: string;
+  countries: string;
+  budget: string;
+  researchKeywords: string;
+  priority: string;
+  timeline: string;
+};
 
 const mapStyles: Array<{ id: MapStyleId; label: string; url: string }> = [
   {
@@ -59,7 +72,32 @@ const palette = [
   "#4d7c0f"
 ];
 
-type DetailTab = "overview" | "rankings" | "research" | "community";
+type DetailTab =
+  | "overview"
+  | "rankings"
+  | "research"
+  | "faculty"
+  | "recommendations"
+  | "community";
+
+const detailTabs: Array<{ id: DetailTab; label: string }> = [
+  { id: "overview", label: "overview" },
+  { id: "rankings", label: "rankings" },
+  { id: "research", label: "research" },
+  { id: "faculty", label: "faculty" },
+  { id: "recommendations", label: "recommend" },
+  { id: "community", label: "community" }
+];
+
+const defaultPreferenceProfile: PreferenceProfile = {
+  degreeLevel: "",
+  subjects: "",
+  countries: "",
+  budget: "",
+  researchKeywords: "",
+  priority: "",
+  timeline: ""
+};
 
 function formatCompact(value?: number) {
   if (value === undefined || Number.isNaN(value)) return "n/a";
@@ -98,6 +136,8 @@ function AppShell({
   title: string;
   subtitle: string;
 }) {
+  const [isConfigOpen, setIsConfigOpen] = useState(false);
+
   return (
     <div className="app">
       <header className="topbar">
@@ -110,17 +150,122 @@ function AppShell({
             <p>{subtitle}</p>
           </div>
         </div>
-        <a
-          className="source-link"
-          href="https://disc-unimap.uibk.ac.at/"
-          target="_blank"
-          rel="noreferrer"
+        <button
+          className="topbar-action"
+          type="button"
+          onClick={() => setIsConfigOpen(true)}
         >
-          Original
-          <ExternalLink size={16} />
-        </a>
+          <Settings2 size={16} />
+          Preference
+        </button>
       </header>
+      {isConfigOpen && <PreferenceDialog onClose={() => setIsConfigOpen(false)} />}
       {children}
+    </div>
+  );
+}
+
+function PreferenceDialog({ onClose }: { onClose: () => void }) {
+  const [profile, setProfile] = useState<PreferenceProfile>(() => {
+    const saved = localStorage.getItem("unimap.preferenceProfile");
+    if (!saved) return defaultPreferenceProfile;
+    try {
+      return { ...defaultPreferenceProfile, ...JSON.parse(saved) };
+    } catch {
+      return defaultPreferenceProfile;
+    }
+  });
+
+  const updateProfile = (key: keyof PreferenceProfile, value: string) => {
+    setProfile((current) => ({ ...current, [key]: value }));
+  };
+
+  const saveProfile = () => {
+    localStorage.setItem("unimap.preferenceProfile", JSON.stringify(profile));
+    onClose();
+  };
+
+  return (
+    <div className="dialog-backdrop" role="presentation">
+      <section className="preference-dialog" role="dialog" aria-modal="true" aria-label="Preference profile">
+        <div className="dialog-head">
+          <div>
+            <h2>Preference profile</h2>
+            <p>Capture your school-selection intent before comparing schools.</p>
+          </div>
+          <button className="icon-button" aria-label="Close preference profile" onClick={onClose}>
+            <X size={17} />
+          </button>
+        </div>
+
+        <div className="preference-grid">
+          <label>
+            Degree level
+            <input
+              value={profile.degreeLevel}
+              onChange={(event) => updateProfile("degreeLevel", event.target.value)}
+              placeholder="Master, PhD, exchange"
+            />
+          </label>
+          <label>
+            Target subjects
+            <input
+              value={profile.subjects}
+              onChange={(event) => updateProfile("subjects", event.target.value)}
+              placeholder="CS, SE, HCI, AI"
+            />
+          </label>
+          <label>
+            Countries or cities
+            <input
+              value={profile.countries}
+              onChange={(event) => updateProfile("countries", event.target.value)}
+              placeholder="Canada, Montreal, Europe"
+            />
+          </label>
+          <label>
+            Budget / funding
+            <input
+              value={profile.budget}
+              onChange={(event) => updateProfile("budget", event.target.value)}
+              placeholder="Need funding, under 30k CAD"
+            />
+          </label>
+          <label>
+            Research keywords
+            <input
+              value={profile.researchKeywords}
+              onChange={(event) => updateProfile("researchKeywords", event.target.value)}
+              placeholder="LLM evaluation, AI for SE"
+            />
+          </label>
+          <label>
+            Decision priority
+            <input
+              value={profile.priority}
+              onChange={(event) => updateProfile("priority", event.target.value)}
+              placeholder="Advisor fit, ranking, visa, jobs"
+            />
+          </label>
+          <label className="preference-wide">
+            Timeline
+            <input
+              value={profile.timeline}
+              onChange={(event) => updateProfile("timeline", event.target.value)}
+              placeholder="Fall 2027, contact advisors this month"
+            />
+          </label>
+        </div>
+
+        <div className="dialog-actions">
+          <button className="ghost-button" type="button" onClick={onClose}>
+            Cancel
+          </button>
+          <button className="primary-button" type="button" onClick={saveProfile}>
+            Save profile
+          </button>
+        </div>
+      </section>
     </div>
   );
 }
@@ -708,13 +853,13 @@ function UniversityCard({
       <p className="muted">{p.rankingGroundTruthUniversityName ?? p.universityName}</p>
 
       <div className="detail-tabs" role="tablist" aria-label="University detail sections">
-        {(["overview", "rankings", "research", "community"] as DetailTab[]).map((value) => (
+        {detailTabs.map((item) => (
           <button
-            key={value}
-            className={tab === value ? "active" : ""}
-            onClick={() => setTab(value)}
+            key={item.id}
+            className={tab === item.id ? "active" : ""}
+            onClick={() => setTab(item.id)}
           >
-            {value}
+            {item.label}
           </button>
         ))}
       </div>
@@ -722,6 +867,8 @@ function UniversityCard({
       {tab === "overview" && <OverviewPanel feature={feature} />}
       {tab === "rankings" && <RankingsPanel feature={feature} mode={mode} />}
       {tab === "research" && <ResearchPanel feature={feature} />}
+      {tab === "faculty" && <FacultyPanel feature={feature} />}
+      {tab === "recommendations" && <RecommendationsPanel feature={feature} />}
       {tab === "community" && <CommunityPanel feature={feature} />}
 
       <div className="button-row">
@@ -885,6 +1032,275 @@ function ResearchPanel({ feature }: { feature: RankingFeature }) {
         <p className="muted">OpenAlex has no topic breakdown for this institution yet.</p>
       )}
     </div>
+  );
+}
+
+function FacultyPanel({ feature }: { feature: RankingFeature }) {
+  const p = feature.properties;
+  const facultyEntries = useMemo(
+    () => api.getFacultyDirectoryEntries(p.universityName),
+    [p.universityName]
+  );
+
+  const departments = useMemo(() => {
+    const counts = new Map<
+      string,
+      {
+        name: string;
+        facultyName: string;
+        count: number;
+        expertise: Set<string>;
+        roles: Set<string>;
+      }
+    >();
+
+    facultyEntries.forEach((entry) => {
+      const name = entry.departmentName || "Academic department";
+      const current = counts.get(name) ?? {
+        name,
+        facultyName: entry.facultyName,
+        count: 0,
+        expertise: new Set<string>(),
+        roles: new Set<string>()
+      };
+      current.count += 1;
+      entry.expertise.forEach((area) => current.expertise.add(area));
+      if (entry.role) current.roles.add(entry.role);
+      counts.set(name, current);
+    });
+
+    return [...counts.values()].sort((a, b) => b.count - a.count);
+  }, [facultyEntries]);
+
+  const topExpertise = useMemo(() => {
+    const counts = new Map<string, number>();
+    facultyEntries.forEach((entry) => {
+      entry.expertise.forEach((area) => counts.set(area, (counts.get(area) ?? 0) + 1));
+    });
+
+    return [...counts.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 8)
+      .map(([area]) => area);
+  }, [facultyEntries]);
+
+  return (
+    <div className="tab-panel">
+      <div className="structure-card">
+        <div className="structure-row root">
+          <Building2 size={16} />
+          <div>
+            <strong>{p.universityName}</strong>
+            <span>Institution</span>
+          </div>
+        </div>
+        <div className="structure-row">
+          <span className="structure-node" />
+          <div>
+            <strong>{departments[0]?.facultyName ?? "Faculty / School"}</strong>
+            <span>Academic unit for departments, programs, labs, and professor affiliations</span>
+          </div>
+        </div>
+        <div className="structure-row">
+          <span className="structure-node" />
+          <div>
+            <strong>Departments & professor directory</strong>
+            <span>
+              {facultyEntries.length
+                ? `${facultyEntries.length} DIRO professors and invited researchers linked`
+                : "Use recommendations for professor-level fit and outreach details"}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {facultyEntries.length ? (
+        <div className="tag-cloud compact-tags">
+          {topExpertise.map((area) => (
+            <span key={area}>{area}</span>
+          ))}
+        </div>
+      ) : null}
+
+      {departments.length === 0 ? (
+        <div className="advisor-empty">
+          <UserRoundSearch size={20} />
+          <p>No faculty structure has been linked to this university yet.</p>
+        </div>
+      ) : null}
+
+      {departments.length ? (
+        <div className="department-list">
+          {departments.map((department) => (
+            <details key={department.name} className="department-card">
+              <summary>
+                <div>
+                  <strong>{department.name}</strong>
+                  <span>{department.count} people listed</span>
+                </div>
+              </summary>
+              <div className="collapsible-body">
+                <p>
+                  {[...department.roles].slice(0, 4).join(" / ") ||
+                    "Administrative and academic roles can be expanded in Supabase."}
+                </p>
+                <div className="tag-cloud compact-tags">
+                  {[...department.expertise].slice(0, 4).map((area) => (
+                    <span key={area}>{area}</span>
+                  ))}
+                </div>
+                <FacultyDirectoryList
+                  entries={facultyEntries.filter(
+                    (entry) => entry.departmentName === department.name
+                  )}
+                  compact
+                />
+              </div>
+            </details>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function FacultyDirectoryList({
+  entries,
+  compact = false
+}: {
+  entries: FacultyDirectoryEntry[];
+  compact?: boolean;
+}) {
+  return (
+    <div className={compact ? "faculty-directory compact-directory" : "faculty-directory"}>
+      {!compact && (
+        <div className="faculty-directory-head">
+          <div>
+            <strong>DIRO professor directory</strong>
+            <span>{entries.length} entries from the department page</span>
+          </div>
+          <ExternalChip href={entries[0].sourceUrl} label="DIRO source" />
+        </div>
+      )}
+      <div className="faculty-person-list">
+        {entries.map((entry) => (
+          <details key={entry.id} className="faculty-person">
+            <summary>
+              <div>
+                <strong>{entry.fullName}</strong>
+                <span>{entry.role ?? "Faculty member"}</span>
+              </div>
+            </summary>
+            <div className="collapsible-body">
+              {entry.expertise.length ? (
+                <p>{entry.expertise.slice(0, 3).join(" / ")}</p>
+              ) : (
+                <p>Expertise not listed on the directory card.</p>
+              )}
+              <div className="faculty-person-actions">
+                {entry.email && <a href={`mailto:${entry.email}`}>{entry.email}</a>}
+                {entry.profileUrl && <ExternalChip href={entry.profileUrl} label="Profile" />}
+              </div>
+            </div>
+          </details>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function RecommendationsPanel({ feature }: { feature: RankingFeature }) {
+  const p = feature.properties;
+  const [advisors, setAdvisors] = useState<AdvisorCard[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    setLoading(true);
+    api
+      .getAdvisorCards(p.universityName, controller.signal)
+      .then(setAdvisors)
+      .catch((err) => {
+        if (err.name !== "AbortError") setAdvisors([]);
+      })
+      .finally(() => setLoading(false));
+
+    return () => controller.abort();
+  }, [p.universityName]);
+
+  return (
+    <div className="tab-panel">
+      {loading && <InlineLoading label="Loading recommendations" />}
+      {!loading && advisors.length === 0 ? (
+        <div className="advisor-empty">
+          <UserRoundSearch size={20} />
+          <p>No advisor recommendations linked to this university yet.</p>
+        </div>
+      ) : null}
+      <div className="advisor-list">
+        {advisors.map((advisor) => (
+          <AdvisorItem key={advisor.id} advisor={advisor} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function AdvisorItem({ advisor }: { advisor: AdvisorCard }) {
+  return (
+    <details className="advisor-card">
+      <summary className="advisor-card-header">
+        <div>
+          <strong>{advisor.fullName}</strong>
+          <span>
+            {[advisor.department, advisor.lab].filter(Boolean).join(" · ") ||
+              advisor.institutionName}
+          </span>
+        </div>
+        {advisor.priority && <em>{advisor.priority}</em>}
+      </summary>
+
+      <div className="collapsible-body">
+        <p>{advisor.fitSummary}</p>
+
+        {advisor.researchAreas.length ? (
+          <div className="tag-cloud compact-tags">
+            {advisor.researchAreas.slice(0, 5).map((area) => (
+              <span key={area}>{area}</span>
+            ))}
+          </div>
+        ) : null}
+
+        <div className="advisor-section">
+          {advisor.contactAngle && (
+            <div>
+              <h4>Angle</h4>
+              <p>{advisor.contactAngle}</p>
+            </div>
+          )}
+          {advisor.targetPrograms.length ? (
+            <div>
+              <h4>Programs</h4>
+              <p>{advisor.targetPrograms.join(" / ")}</p>
+            </div>
+          ) : null}
+        </div>
+
+        <div className="advisor-meta">
+          {advisor.outreachStatus && <span>{advisor.outreachStatus}</span>}
+          {advisor.recruitingSignal && <span>{advisor.recruitingSignal}</span>}
+          {advisor.politicalSensitivity && (
+            <span className="advisor-warning">Sensitivity: {advisor.politicalSensitivity}</span>
+          )}
+        </div>
+
+        {advisor.profileUrl && (
+          <div className="advisor-footer">
+            <ExternalChip href={advisor.profileUrl} label="Profile" />
+          </div>
+        )}
+      </div>
+    </details>
   );
 }
 

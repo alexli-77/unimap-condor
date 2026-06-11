@@ -13,3 +13,9 @@ vite.config.d.ts
 *.mobileprovision
 .DS_Store
 coverage/
+__pycache__/
+*.py[cod]
+tools/intake/scrapy/.venv/
+tools/intake/scrapy/output/*
+!tools/intake/scrapy/output/
+!tools/intake/scrapy/output/.gitkeep

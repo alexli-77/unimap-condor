@@ -1,6 +1,9 @@
 import type {
   AdvisorCard,
+  FacultyDepartmentSummary,
   FacultyDirectoryEntry,
+  FacultyDirectoryPage,
+  FacultyDirectorySummary,
   OpenDataProfile,
   RankingFeatureCollection,
   Source,
@@ -17,6 +20,8 @@ const universityCache = new Map<number, UniversityDetail>();
 const openDataCache = new Map<string, OpenDataProfile>();
 const advisorCache = new Map<string, AdvisorCard[]>();
 const facultyDirectoryCache = new Map<string, FacultyDirectoryEntry[]>();
+const facultySummaryCache = new Map<string, FacultyDirectorySummary>();
+const facultyPageCache = new Map<string, FacultyDirectoryPage>();
 
 async function request<T>(path: string, signal?: AbortSignal): Promise<T> {
   if (responseCache.has(path)) {
@@ -152,6 +157,188 @@ function getFacultyDirectoryEntries(universityName: string) {
 
   facultyDirectoryCache.set(cacheKey, entries);
   return entries;
+}
+
+function buildFacultySummary(
+  universityName: string,
+  entries: FacultyDirectoryEntry[],
+  sourceLabel = "Local directory"
+): FacultyDirectorySummary {
+  const departments = new Map<string, FacultyDepartmentSummary>();
+
+  entries.forEach((entry) => {
+    const name = entry.departmentName || "Academic department";
+    const current = departments.get(name) ?? {
+      name,
+      facultyName: entry.facultyName,
+      count: 0,
+      expertise: [],
+      roles: []
+    };
+    current.count += 1;
+    current.expertise = uniq([...current.expertise, ...entry.expertise]).slice(0, 8);
+    current.roles = uniq([...current.roles, entry.role]).slice(0, 6);
+    departments.set(name, current);
+  });
+
+  return {
+    universityName,
+    totalEntries: entries.length,
+    sourceUrl: entries[0]?.sourceUrl,
+    sourceLabel,
+    departments: [...departments.values()].sort((a, b) => b.count - a.count)
+  };
+}
+
+function sliceFacultyPage(
+  entries: FacultyDirectoryEntry[],
+  offset: number,
+  limit: number
+): FacultyDirectoryPage {
+  const safeOffset = Math.max(0, offset);
+  const safeLimit = Math.max(1, limit);
+  return {
+    entries: entries.slice(safeOffset, safeOffset + safeLimit),
+    total: entries.length,
+    offset: safeOffset,
+    limit: safeLimit,
+    hasMore: safeOffset + safeLimit < entries.length,
+    sourceUrl: entries[0]?.sourceUrl
+  };
+}
+
+function mapFacultyDirectoryRow(row: any): FacultyDirectoryEntry {
+  const researchAreas = Array.isArray(row.research_areas)
+    ? row.research_areas
+    : Array.isArray(row.expertise)
+      ? row.expertise
+      : [];
+  return {
+    id: String(row.id ?? row.record_key ?? row.full_name),
+    fullName: row.full_name ?? row.name ?? "",
+    institutionName: row.institution_name ?? "",
+    institutionAliases: row.institution_aliases ?? [],
+    facultyName: row.faculty_name ?? "",
+    departmentName: row.department_name ?? row.department ?? "",
+    role: row.role ?? row.title ?? undefined,
+    email: row.email ?? undefined,
+    profileUrl: row.profile_url ?? undefined,
+    expertise: researchAreas,
+    sourceUrl: row.source_url ?? ""
+  };
+}
+
+function mapDepartmentSummaryRow(row: any): FacultyDepartmentSummary {
+  return {
+    name: row.department_name || "Academic department",
+    facultyName: row.faculty_name ?? "",
+    count: Number(row.member_count ?? row.count ?? 0),
+    expertise: Array.isArray(row.research_areas) ? row.research_areas.slice(0, 8) : [],
+    roles: Array.isArray(row.roles) ? row.roles.slice(0, 6) : []
+  };
+}
+
+async function getFacultyDirectorySummary(
+  universityName: string,
+  signal?: AbortSignal
+): Promise<FacultyDirectorySummary> {
+  const cacheKey = normalizeName(universityName);
+  if (!signal && facultySummaryCache.has(cacheKey)) {
+    return facultySummaryCache.get(cacheKey)!;
+  }
+
+  if (supabase) {
+    try {
+      const query = supabase
+        .from("university_faculty_department_summary_public")
+        .select("*")
+        .ilike("institution_name", `%${universityName}%`)
+        .order("member_count", { ascending: false });
+
+      const { data, error } = await (signal ? query.abortSignal(signal) : query);
+      if (error) throw error;
+
+      const departments = (data ?? []).map(mapDepartmentSummaryRow);
+      if (departments.length) {
+        const summary: FacultyDirectorySummary = {
+          universityName,
+          totalEntries: departments.reduce((sum, department) => sum + department.count, 0),
+          sourceUrl: data?.[0]?.source_url ?? undefined,
+          sourceLabel: "Verified faculty index",
+          departments
+        };
+        if (!signal) facultySummaryCache.set(cacheKey, summary);
+        return summary;
+      }
+    } catch (error) {
+      console.warn("Falling back to local faculty summary", error);
+    }
+  }
+
+  const summary = buildFacultySummary(
+    universityName,
+    getFacultyDirectoryEntries(universityName),
+    "Local faculty directory"
+  );
+  if (!signal) facultySummaryCache.set(cacheKey, summary);
+  return summary;
+}
+
+async function getFacultyDirectoryPage(
+  universityName: string,
+  departmentName: string,
+  offset = 0,
+  limit = 30,
+  signal?: AbortSignal
+): Promise<FacultyDirectoryPage> {
+  const cacheKey = [
+    normalizeName(universityName),
+    normalizeName(departmentName),
+    offset,
+    limit
+  ].join(":");
+  if (!signal && facultyPageCache.has(cacheKey)) {
+    return facultyPageCache.get(cacheKey)!;
+  }
+
+  if (supabase) {
+    try {
+      let query = supabase
+        .from("university_faculty_directory_public")
+        .select("*", { count: "exact" })
+        .ilike("institution_name", `%${universityName}%`)
+        .order("full_name", { ascending: true })
+        .range(offset, offset + limit - 1);
+
+      if (departmentName) {
+        query = query.eq("department_name", departmentName);
+      }
+
+      const { data, error, count } = await (signal ? query.abortSignal(signal) : query);
+      if (error) throw error;
+
+      if (data?.length || count) {
+        const page: FacultyDirectoryPage = {
+          entries: (data ?? []).map(mapFacultyDirectoryRow),
+          total: count ?? data?.length ?? 0,
+          offset,
+          limit,
+          hasMore: offset + limit < (count ?? 0),
+          sourceUrl: data?.[0]?.source_url ?? undefined
+        };
+        if (!signal) facultyPageCache.set(cacheKey, page);
+        return page;
+      }
+    } catch (error) {
+      console.warn("Falling back to local faculty page", error);
+    }
+  }
+
+  const entries = getFacultyDirectoryEntries(universityName)
+    .filter((entry) => !departmentName || entry.departmentName === departmentName);
+  const page = sliceFacultyPage(entries, offset, limit);
+  if (!signal) facultyPageCache.set(cacheKey, page);
+  return page;
 }
 
 async function getAdvisorCards(
@@ -306,5 +493,7 @@ export const api = {
   },
   getOpenDataProfile,
   getAdvisorCards,
-  getFacultyDirectoryEntries
+  getFacultyDirectoryEntries,
+  getFacultyDirectorySummary,
+  getFacultyDirectoryPage
 };

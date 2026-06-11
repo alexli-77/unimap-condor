@@ -101,3 +101,28 @@ export type FacultyDirectoryEntry = {
   expertise: string[];
   sourceUrl: string;
 };
+
+export type FacultyDepartmentSummary = {
+  name: string;
+  facultyName: string;
+  count: number;
+  expertise: string[];
+  roles: string[];
+};
+
+export type FacultyDirectorySummary = {
+  universityName: string;
+  totalEntries: number;
+  sourceUrl?: string;
+  sourceLabel: string;
+  departments: FacultyDepartmentSummary[];
+};
+
+export type FacultyDirectoryPage = {
+  entries: FacultyDirectoryEntry[];
+  total: number;
+  offset: number;
+  limit: number;
+  hasMore: boolean;
+  sourceUrl?: string;
+};

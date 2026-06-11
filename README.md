@@ -76,6 +76,13 @@ The schema is intentionally split into institutions, programs, faculty profiles,
 
 If Supabase is not configured, the app falls back to the 15 Montreal advisor notes seeded from the local vault scan.
 
+## Data Intake
+
+The first Scrapy-based intake workflow lives under [tools/intake](./tools/intake).
+It collects candidate faculty, program, tuition, and funding records into Supabase
+staging tables as `draft` data. These records are meant for review before they
+are used by the map or Fit Signals.
+
 ## Development Notes
 
 The Vite dev server proxies external APIs to avoid browser CORS issues:

@@ -1,0 +1,372 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>UniMap Data Intake</title>
+    <style>
+      :root {
+        color: #172033;
+        background: #eef3f8;
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+      * { box-sizing: border-box; }
+      body { margin: 0; }
+      main {
+        width: min(1120px, calc(100vw - 32px));
+        margin: 0 auto;
+        padding: 28px 0;
+      }
+      header {
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: 18px;
+        margin-bottom: 18px;
+      }
+      h1, h2, h3, p { margin: 0; }
+      h1 { font-size: 26px; line-height: 1.15; }
+      header p, .muted { color: #617087; font-size: 13px; line-height: 1.45; }
+      .grid {
+        display: grid;
+        grid-template-columns: 380px minmax(0, 1fr);
+        gap: 14px;
+      }
+      .stack {
+        display: grid;
+        gap: 14px;
+      }
+      section {
+        display: grid;
+        gap: 12px;
+        padding: 16px;
+        border: 1px solid #d9e0ea;
+        border-radius: 10px;
+        background: #fff;
+      }
+      label {
+        display: grid;
+        gap: 5px;
+        color: #516176;
+        font-size: 13px;
+        font-weight: 650;
+      }
+      input, select, button, textarea { font: inherit; }
+      input, select, textarea {
+        width: 100%;
+        min-height: 38px;
+        padding: 0 10px;
+        border: 1px solid #cbd5e1;
+        border-radius: 7px;
+        color: #172033;
+        background: #fff;
+      }
+      textarea { min-height: 180px; padding: 10px; resize: vertical; }
+      button {
+        min-height: 38px;
+        border: 1px solid #cbd5e1;
+        border-radius: 7px;
+        color: #172033;
+        background: #fff;
+        cursor: pointer;
+      }
+      button.primary {
+        border-color: #1f4f7a;
+        color: #fff;
+        background: #1f4f7a;
+      }
+      button:disabled { opacity: 0.55; cursor: not-allowed; }
+      .row { display: flex; gap: 8px; align-items: center; }
+      .row > * { flex: 1; }
+      .status {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      .pill {
+        min-height: 28px;
+        display: inline-flex;
+        align-items: center;
+        padding: 0 9px;
+        border-radius: 999px;
+        color: #1f4f7a;
+        background: #eaf2fa;
+        font-size: 12px;
+        font-weight: 700;
+      }
+      .feed-list {
+        display: grid;
+        gap: 8px;
+        max-height: 340px;
+        overflow: auto;
+      }
+      .feed {
+        display: grid;
+        gap: 4px;
+        padding: 10px;
+        border: 1px solid #d9e0ea;
+        border-radius: 8px;
+        text-align: left;
+      }
+      .feed.active { border-color: #1f4f7a; background: #f4f8fb; }
+      .feed strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .feed span { color: #617087; font-size: 12px; }
+      pre {
+        max-height: 280px;
+        overflow: auto;
+        margin: 0;
+        padding: 12px;
+        border-radius: 8px;
+        color: #dce8f6;
+        background: #142033;
+        font-size: 12px;
+        line-height: 1.45;
+        white-space: pre-wrap;
+      }
+      .preview {
+        display: grid;
+        gap: 10px;
+      }
+      .record {
+        display: grid;
+        gap: 5px;
+        padding: 10px;
+        border-radius: 8px;
+        background: #f5f7fa;
+      }
+      .record strong { font-size: 13px; }
+      .record code { color: #516176; font-size: 12px; white-space: pre-wrap; }
+      .key-preview {
+        color: #617087;
+        font-size: 12px;
+      }
+      @media (max-width: 860px) {
+        .grid { grid-template-columns: 1fr; }
+        header { align-items: flex-start; flex-direction: column; }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <div>
+          <h1>UniMap Data Intake</h1>
+          <p>Run focused Scrapy jobs, inspect draft records, then import reviewed feeds to Supabase staging.</p>
+        </div>
+        <button id="refresh">Refresh</button>
+      </header>
+
+      <div class="grid">
+        <div class="stack">
+          <section>
+            <h2>Supabase</h2>
+            <p class="muted">Saved locally to tools/intake/.env. Use a Supabase Secret API key that starts with sb_secret_.</p>
+            <label>
+              Project URL
+              <input id="supabaseUrl" placeholder="https://your-project.supabase.co" />
+            </label>
+            <label>
+              Secret API key
+              <input id="secretKey" type="password" placeholder="Paste sb_secret_ key" />
+            </label>
+            <div class="row">
+              <button id="saveConfig">Save config</button>
+              <span class="key-preview" id="keyPreview">Not configured</span>
+            </div>
+          </section>
+
+          <section>
+            <h2>Run Intake</h2>
+            <div class="status" id="status"></div>
+            <label>
+              Page type
+              <select id="sourceType">
+                <option value="faculty">Faculty</option>
+                <option value="udem_professors">UdeM Professors</option>
+                <option value="program">Program</option>
+                <option value="tuition_funding">Tuition / Funding</option>
+              </select>
+            </label>
+            <label>
+              University
+              <input id="university" value="Université de Montréal" />
+            </label>
+            <label>
+              Source URL
+              <input id="url" value="https://recherche.umontreal.ca/nos-equipes-de-recherche/repertoire-des-professeurs-et-professeures/sm/l/" />
+            </label>
+            <button class="primary" id="run">Run spider</button>
+            <pre id="log">Ready.</pre>
+          </section>
+        </div>
+
+        <section>
+          <h2>Feeds</h2>
+          <p class="muted">Scrapy output files stay local until you import them.</p>
+          <div class="feed-list" id="feeds"></div>
+          <div class="row">
+            <button id="preview" disabled>Preview selected</button>
+            <button id="import" disabled>Import to Supabase</button>
+          </div>
+        </section>
+      </div>
+
+      <section style="margin-top: 14px;">
+        <h2>Preview</h2>
+        <div class="preview" id="previewPane">
+          <p class="muted">Select a feed to preview records.</p>
+        </div>
+      </section>
+    </main>
+
+    <script>
+      const state = { selectedFeed: "" };
+      const $ = (id) => document.getElementById(id);
+
+      async function api(path, options) {
+        const response = await fetch(path, options);
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || "Request failed");
+        return data;
+      }
+
+      function setLog(value) {
+        $("log").textContent = value || "";
+      }
+
+      function renderStatus(data) {
+        const supabaseLabel = data.hasSupabaseEnv
+          ? "Supabase ready"
+          : data.supabaseKeyKind === "legacy"
+            ? "Legacy key saved"
+            : "No Supabase env";
+        $("status").innerHTML = [
+          `<span class="pill">Python ${data.python}</span>`,
+          `<span class="pill">${data.scrapyAvailable ? "Scrapy ready" : "Scrapy missing"}</span>`,
+          `<span class="pill">${supabaseLabel}</span>`
+        ].join("");
+      }
+
+      async function loadConfig() {
+        const config = await api("/api/config");
+        $("supabaseUrl").value = config.supabaseUrl || "";
+        $("secretKey").value = "";
+        $("keyPreview").textContent = config.hasSecretKey
+          ? `${config.keyKind === "secret" ? "Secret key" : "Legacy key"} saved: ${config.secretKeyPreview}`
+          : "Not configured";
+      }
+
+      function renderFeeds(feeds) {
+        $("feeds").innerHTML = feeds.length
+          ? feeds.map((feed) => `
+              <button class="feed ${state.selectedFeed === feed.name ? "active" : ""}" data-feed="${feed.name}">
+                <strong>${feed.name}</strong>
+                <span>${feed.records || 0} records · ${(feed.sourceTypes || []).join(", ") || "unknown"}</span>
+                <span>${(feed.universities || []).join(", ") || "No university label"}</span>
+              </button>
+            `).join("")
+          : `<p class="muted">No feeds yet. Run a spider first.</p>`;
+        document.querySelectorAll("[data-feed]").forEach((button) => {
+          button.addEventListener("click", () => {
+            state.selectedFeed = button.dataset.feed;
+            $("preview").disabled = false;
+            $("import").disabled = false;
+            refresh();
+          });
+        });
+      }
+
+      async function refresh() {
+        const [data] = await Promise.all([api("/api/status"), loadConfig()]);
+        renderStatus(data);
+        renderFeeds(data.feeds || []);
+      }
+
+      async function saveConfig() {
+        $("saveConfig").disabled = true;
+        setLog("Saving Supabase config...");
+        try {
+          const data = await api("/api/config", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({
+              supabaseUrl: $("supabaseUrl").value,
+              secretKey: $("secretKey").value
+            })
+          });
+          $("secretKey").value = "";
+          $("keyPreview").textContent = data.hasSecretKey
+            ? `${data.keyKind === "secret" ? "Secret key" : "Legacy key"} saved: ${data.secretKeyPreview}`
+            : "Not configured";
+          setLog("Supabase config saved locally.");
+          await refresh();
+        } catch (error) {
+          setLog(error.message);
+        } finally {
+          $("saveConfig").disabled = false;
+        }
+      }
+
+      async function runSpider() {
+        $("run").disabled = true;
+        setLog("Running spider...");
+        try {
+          const data = await api("/api/run", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({
+              sourceType: $("sourceType").value,
+              university: $("university").value,
+              url: $("url").value
+            })
+          });
+          setLog([data.stdout, data.stderr].filter(Boolean).join("\\n\\n") || "Done.");
+          await refresh();
+        } catch (error) {
+          setLog(error.message);
+        } finally {
+          $("run").disabled = false;
+        }
+      }
+
+      async function previewFeed() {
+        if (!state.selectedFeed) return;
+        const data = await api(`/api/feed?name=${encodeURIComponent(state.selectedFeed)}`);
+        const rows = data.rows || [];
+        $("previewPane").innerHTML = rows.length
+          ? rows.flatMap((row) => (row.records || []).slice(0, 10).map((record) => `
+              <div class="record">
+                <strong>${record.name || record.topic || record.record_type || "Record"}</strong>
+                <code>${JSON.stringify(record, null, 2)}</code>
+              </div>
+            `)).join("")
+          : `<p class="muted">No records in this feed.</p>`;
+      }
+
+      async function importFeed() {
+        if (!state.selectedFeed) return;
+        $("import").disabled = true;
+        setLog(`Importing ${state.selectedFeed}...`);
+        try {
+          const data = await api("/api/import", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ feed: state.selectedFeed })
+          });
+          setLog([data.stdout, data.stderr].filter(Boolean).join("\\n\\n") || "Imported.");
+        } catch (error) {
+          setLog(error.message);
+        } finally {
+          $("import").disabled = false;
+        }
+      }
+
+      $("refresh").addEventListener("click", refresh);
+      $("saveConfig").addEventListener("click", saveConfig);
+      $("run").addEventListener("click", runSpider);
+      $("preview").addEventListener("click", previewFeed);
+      $("import").addEventListener("click", importFeed);
+      refresh().catch((error) => setLog(error.message));
+    </script>
+  </body>
+</html>

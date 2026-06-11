@@ -140,8 +140,92 @@
         color: #617087;
         font-size: 12px;
       }
+      .review-controls {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 10px;
+      }
+      .review-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        align-items: center;
+      }
+      .review-actions button {
+        flex: 0 0 auto;
+      }
+      .review-summary {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 10px;
+      }
+      .summary-card {
+        display: grid;
+        gap: 6px;
+        padding: 10px;
+        border: 1px solid #d9e0ea;
+        border-radius: 8px;
+        background: #f8fafc;
+      }
+      .summary-card strong { font-size: 13px; }
+      .summary-card button {
+        min-height: 30px;
+        padding: 0;
+        border: 0;
+        color: #516176;
+        background: transparent;
+        text-align: left;
+      }
+      .review-list {
+        display: grid;
+        gap: 10px;
+      }
+      .review-record {
+        display: grid;
+        gap: 9px;
+        padding: 12px;
+        border: 1px solid #d9e0ea;
+        border-radius: 9px;
+        background: #fff;
+      }
+      .review-record-head {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr) auto;
+        gap: 10px;
+        align-items: start;
+      }
+      .review-record-head strong {
+        display: block;
+        overflow: hidden;
+        color: #172033;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .review-record-head span,
+      .review-meta {
+        color: #617087;
+        font-size: 12px;
+        line-height: 1.4;
+      }
+      .review-json {
+        min-height: 140px;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        font-size: 12px;
+      }
+      .danger {
+        border-color: #c2410c;
+        color: #9a3412;
+        background: #fff7ed;
+      }
+      .success {
+        border-color: #047857;
+        color: #fff;
+        background: #047857;
+      }
       @media (max-width: 860px) {
         .grid { grid-template-columns: 1fr; }
+        .review-controls,
+        .review-summary { grid-template-columns: 1fr; }
         header { align-items: flex-start; flex-direction: column; }
       }
     </style>
@@ -217,10 +301,71 @@
           <p class="muted">Select a feed to preview records.</p>
         </div>
       </section>
+
+      <section style="margin-top: 14px;">
+        <h2>Review staging</h2>
+        <p class="muted">Review imported draft records before they become visible in the public faculty views.</p>
+        <div class="review-controls">
+          <label>
+            Status
+            <select id="reviewStatus">
+              <option value="draft">Draft</option>
+              <option value="needs_review">Needs review</option>
+              <option value="verified">Verified</option>
+              <option value="rejected">Rejected</option>
+              <option value="all">All</option>
+            </select>
+          </label>
+          <label>
+            Record type
+            <select id="reviewRecordType">
+              <option value="faculty_member">Faculty member</option>
+              <option value="program">Program</option>
+              <option value="tuition_funding">Tuition / funding</option>
+              <option value="all">All</option>
+            </select>
+          </label>
+          <label>
+            Institution
+            <input id="reviewInstitution" value="Université de Montréal" />
+          </label>
+          <label>
+            Search
+            <input id="reviewSearch" placeholder="Name or record key" />
+          </label>
+          <label>
+            Faculty
+            <input id="reviewFaculty" placeholder="Optional exact faculty" />
+          </label>
+          <label>
+            Department
+            <input id="reviewDepartment" placeholder="Optional exact department" />
+          </label>
+        </div>
+        <div class="review-actions">
+          <button class="primary" id="loadReview">Load records</button>
+          <button id="prevReview" disabled>Previous</button>
+          <button id="nextReview" disabled>Next</button>
+          <button class="success" id="verifySelected" disabled>Verify selected</button>
+          <button id="needsReviewSelected" disabled>Needs review</button>
+          <button class="danger" id="rejectSelected" disabled>Reject selected</button>
+          <span class="key-preview" id="reviewCount">No records loaded</span>
+        </div>
+        <div class="review-summary" id="reviewSummary"></div>
+        <div class="review-list" id="reviewList">
+          <p class="muted">Load draft records to start reviewing.</p>
+        </div>
+      </section>
     </main>
 
     <script>
-      const state = { selectedFeed: "" };
+      const state = {
+        selectedFeed: "",
+        reviewOffset: 0,
+        reviewLimit: 40,
+        reviewTotal: 0,
+        selectedReviewIds: new Set()
+      };
       const $ = (id) => document.getElementById(id);
 
       async function api(path, options) {
@@ -232,6 +377,29 @@
 
       function setLog(value) {
         $("log").textContent = value || "";
+      }
+
+      function escapeHtml(value) {
+        return String(value ?? "")
+          .replaceAll("&", "&amp;")
+          .replaceAll("<", "&lt;")
+          .replaceAll(">", "&gt;")
+          .replaceAll('"', "&quot;")
+          .replaceAll("'", "&#039;");
+      }
+
+      function reviewQuery(offset = state.reviewOffset) {
+        const params = new URLSearchParams({
+          status: $("reviewStatus").value,
+          recordType: $("reviewRecordType").value,
+          institution: $("reviewInstitution").value,
+          faculty: $("reviewFaculty").value,
+          department: $("reviewDepartment").value,
+          q: $("reviewSearch").value,
+          limit: String(state.reviewLimit),
+          offset: String(offset)
+        });
+        return params.toString();
       }
 
       function renderStatus(data) {
@@ -361,11 +529,171 @@
         }
       }
 
+      function renderReviewSummary(summary) {
+        const block = (title, items, field) => `
+          <div class="summary-card">
+            <strong>${escapeHtml(title)}</strong>
+            ${(items || []).slice(0, 8).map((item) => `
+              <button type="button" data-filter-field="${field}" data-filter-value="${escapeHtml(item.name)}">
+                ${escapeHtml(item.name)} · ${item.count}
+              </button>
+            `).join("") || `<span class="muted">No values</span>`}
+          </div>
+        `;
+        $("reviewSummary").innerHTML = [
+          block("Institutions", summary.institutions, "reviewInstitution"),
+          block("Faculties", summary.faculties, "reviewFaculty"),
+          block("Departments", summary.departments, "reviewDepartment")
+        ].join("");
+        document.querySelectorAll("[data-filter-field]").forEach((button) => {
+          button.addEventListener("click", () => {
+            $(button.dataset.filterField).value = button.dataset.filterValue;
+            loadReview(0);
+          });
+        });
+      }
+
+      function renderReviewRecords(data) {
+        const records = data.records || [];
+        state.reviewTotal = data.total || 0;
+        state.reviewOffset = data.offset || 0;
+        state.selectedReviewIds = new Set(
+          [...state.selectedReviewIds].filter((id) => records.some((record) => record.id === id))
+        );
+        $("reviewCount").textContent = `${state.reviewOffset + 1}-${Math.min(state.reviewOffset + records.length, state.reviewTotal)} of ${state.reviewTotal}`;
+        $("prevReview").disabled = state.reviewOffset <= 0;
+        $("nextReview").disabled = !data.hasMore;
+        updateReviewActionState();
+        $("reviewList").innerHTML = records.length
+          ? records.map((record) => {
+              const checked = state.selectedReviewIds.has(record.id) ? "checked" : "";
+              const json = escapeHtml(JSON.stringify(record.extractedJson || {}, null, 2));
+              const areas = (record.researchAreas || []).slice(0, 6).join(" / ");
+              return `
+                <article class="review-record" data-review-id="${record.id}">
+                  <div class="review-record-head">
+                    <input type="checkbox" class="review-check" data-id="${record.id}" ${checked} />
+                    <div>
+                      <strong>${escapeHtml(record.name)}</strong>
+                      <span>${escapeHtml(record.institutionName)} · ${escapeHtml(record.facultyName || "No faculty")} · ${escapeHtml(record.departmentName || "No department")}</span>
+                    </div>
+                    <span class="pill">${escapeHtml(record.reviewStatus)}</span>
+                  </div>
+                  <div class="review-meta">
+                    ${escapeHtml(record.profileUrl || record.email || record.recordKey || "")}
+                    ${areas ? `<br />${escapeHtml(areas)}` : ""}
+                  </div>
+                  <label>
+                    Notes
+                    <input class="review-notes" value="${escapeHtml(record.notes || "")}" />
+                  </label>
+                  <label>
+                    Extracted JSON
+                    <textarea class="review-json">${json}</textarea>
+                  </label>
+                  <div class="review-actions">
+                    <button type="button" class="save-record" data-id="${record.id}">Save edits</button>
+                    <button type="button" class="verify-record success" data-id="${record.id}">Verify</button>
+                    <button type="button" class="needs-record" data-id="${record.id}">Needs review</button>
+                    <button type="button" class="reject-record danger" data-id="${record.id}">Reject</button>
+                  </div>
+                </article>
+              `;
+            }).join("")
+          : `<p class="muted">No records match these filters.</p>`;
+
+        document.querySelectorAll(".review-check").forEach((checkbox) => {
+          checkbox.addEventListener("change", () => {
+            if (checkbox.checked) state.selectedReviewIds.add(checkbox.dataset.id);
+            else state.selectedReviewIds.delete(checkbox.dataset.id);
+            updateReviewActionState();
+          });
+        });
+        document.querySelectorAll(".save-record").forEach((button) => {
+          button.addEventListener("click", () => saveReviewRecord(button.dataset.id));
+        });
+        document.querySelectorAll(".verify-record").forEach((button) => {
+          button.addEventListener("click", () => updateRecordStatus([button.dataset.id], "verified"));
+        });
+        document.querySelectorAll(".needs-record").forEach((button) => {
+          button.addEventListener("click", () => updateRecordStatus([button.dataset.id], "needs_review"));
+        });
+        document.querySelectorAll(".reject-record").forEach((button) => {
+          button.addEventListener("click", () => updateRecordStatus([button.dataset.id], "rejected"));
+        });
+      }
+
+      function updateReviewActionState() {
+        const disabled = state.selectedReviewIds.size === 0;
+        $("verifySelected").disabled = disabled;
+        $("needsReviewSelected").disabled = disabled;
+        $("rejectSelected").disabled = disabled;
+      }
+
+      async function loadReview(offset = 0) {
+        state.reviewOffset = Math.max(0, offset);
+        $("loadReview").disabled = true;
+        setLog("Loading review records...");
+        try {
+          const [summary, records] = await Promise.all([
+            api(`/api/review/summary?${reviewQuery(0)}`),
+            api(`/api/review?${reviewQuery(state.reviewOffset)}`)
+          ]);
+          renderReviewSummary(summary);
+          renderReviewRecords(records);
+          setLog("Review records loaded.");
+        } catch (error) {
+          setLog(error.message);
+        } finally {
+          $("loadReview").disabled = false;
+        }
+      }
+
+      async function updateRecordStatus(ids, status) {
+        if (!ids.length) return;
+        setLog(`Updating ${ids.length} record(s) to ${status}...`);
+        try {
+          const data = await api("/api/review/status", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ ids, status })
+          });
+          setLog(`Updated ${data.updated} record(s).`);
+          ids.forEach((id) => state.selectedReviewIds.delete(id));
+          await loadReview(state.reviewOffset);
+        } catch (error) {
+          setLog(error.message);
+        }
+      }
+
+      async function saveReviewRecord(id) {
+        const card = document.querySelector(`[data-review-id="${id}"]`);
+        if (!card) return;
+        try {
+          const extractedJson = JSON.parse(card.querySelector(".review-json").value);
+          const notes = card.querySelector(".review-notes").value;
+          await api("/api/review/record", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ id, extractedJson, notes })
+          });
+          setLog("Record saved.");
+        } catch (error) {
+          setLog(`Save failed: ${error.message}`);
+        }
+      }
+
       $("refresh").addEventListener("click", refresh);
       $("saveConfig").addEventListener("click", saveConfig);
       $("run").addEventListener("click", runSpider);
       $("preview").addEventListener("click", previewFeed);
       $("import").addEventListener("click", importFeed);
+      $("loadReview").addEventListener("click", () => loadReview(0));
+      $("prevReview").addEventListener("click", () => loadReview(state.reviewOffset - state.reviewLimit));
+      $("nextReview").addEventListener("click", () => loadReview(state.reviewOffset + state.reviewLimit));
+      $("verifySelected").addEventListener("click", () => updateRecordStatus([...state.selectedReviewIds], "verified"));
+      $("needsReviewSelected").addEventListener("click", () => updateRecordStatus([...state.selectedReviewIds], "needs_review"));
+      $("rejectSelected").addEventListener("click", () => updateRecordStatus([...state.selectedReviewIds], "rejected"));
       refresh().catch((error) => setLog(error.message));
     </script>
   </body>

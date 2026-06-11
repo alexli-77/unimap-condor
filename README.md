@@ -83,6 +83,12 @@ It collects candidate faculty, program, tuition, and funding records into Supaba
 staging tables as `draft` data. These records are meant for review before they
 are used by the map or Fit Signals.
 
+The local intake UI also includes a `Review staging` workflow for filtering draft
+records, correcting extracted JSON, adding notes, and marking records as
+`verified` or `rejected`. The map reads only verified faculty records through
+public summary views, so growing intake data does not automatically appear in the
+product until it has been checked.
+
 ## Development Notes
 
 The Vite dev server proxies external APIs to avoid browser CORS issues:

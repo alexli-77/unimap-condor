@@ -3,10 +3,13 @@ import json
 import os
 import subprocess
 import sys
+from datetime import datetime, timezone
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
+
+import requests
 
 
 ROOT = Path(__file__).resolve().parent
@@ -21,6 +24,8 @@ SPIDERS = {
     "program": "program",
     "tuition_funding": "tuition",
 }
+REVIEW_STATUSES = {"draft", "needs_review", "verified", "rejected"}
+REVIEW_RECORD_TYPES = {"faculty_member", "program", "tuition_funding", "other"}
 
 
 def load_env_file():
@@ -74,6 +79,297 @@ def save_config(supabase_url, secret_key):
         ),
         encoding="utf-8",
     )
+
+
+def get_supabase_credentials():
+    env = load_env_file()
+    supabase_url = (env.get("SUPABASE_URL") or "").rstrip("/")
+    api_key = env.get("SUPABASE_SECRET_KEY") or env.get("SUPABASE_SERVICE_ROLE_KEY") or ""
+    if not supabase_url or not api_key:
+        raise ValueError("Save Supabase config before reviewing records")
+    if not api_key.startswith("sb_secret_"):
+        raise ValueError("Use a new Supabase Secret API key that starts with sb_secret_")
+    return supabase_url, api_key
+
+
+def supabase_headers(api_key, prefer=None):
+    headers = {
+        "apikey": api_key,
+        "content-type": "application/json",
+    }
+    if not api_key.startswith("sb_secret_"):
+        headers["authorization"] = f"Bearer {api_key}"
+    if prefer:
+        headers["prefer"] = prefer
+    return headers
+
+
+def supabase_request(method, table, params=None, payload=None, prefer=None):
+    supabase_url, api_key = get_supabase_credentials()
+    response = requests.request(
+        method,
+        f"{supabase_url}/rest/v1/{table}",
+        headers=supabase_headers(api_key, prefer),
+        params=params or {},
+        data=json.dumps(payload) if payload is not None else None,
+        timeout=30,
+    )
+    if response.status_code >= 400:
+        raise ValueError(f"Supabase request failed: {response.status_code} {response.text}")
+    data = response.json() if response.text else []
+    return data, response.headers
+
+
+def parse_total_count(headers, fallback):
+    content_range = headers.get("content-range") or headers.get("Content-Range") or ""
+    if "/" not in content_range:
+        return fallback
+    total = content_range.rsplit("/", 1)[-1]
+    return fallback if total == "*" else int(total)
+
+
+def in_filter(values):
+    return f"in.({','.join(values)})"
+
+
+def unique(values):
+    seen = set()
+    output = []
+    for value in values:
+        if value and value not in seen:
+            seen.add(value)
+            output.append(value)
+    return output
+
+
+def fetch_sources(source_ids):
+    ids = unique([source_id for source_id in source_ids if source_id])
+    if not ids:
+        return {}
+    rows, _ = supabase_request(
+        "GET",
+        "intake_sources",
+        params={
+            "select": "id,institution_name,source_type,source_url,page_title",
+            "id": in_filter(ids),
+        },
+    )
+    return {row["id"]: row for row in rows}
+
+
+def get_matching_source_ids(institution=None, source_type=None):
+    params = {"select": "id"}
+    if institution:
+        params["institution_name"] = f"ilike.*{institution}*"
+    if source_type:
+        params["source_type"] = f"eq.{source_type}"
+    if len(params) == 1:
+        return None
+    rows, _ = supabase_request("GET", "intake_sources", params=params)
+    return [row["id"] for row in rows]
+
+
+def normalize_review_record(row, source=None):
+    extracted = row.get("extracted_json") or {}
+    source = source or {}
+    return {
+        "id": row["id"],
+        "sourceId": row.get("source_id"),
+        "recordKey": row.get("record_key"),
+        "recordType": row.get("record_type"),
+        "reviewStatus": row.get("review_status"),
+        "confidence": row.get("confidence"),
+        "notes": row.get("notes") or "",
+        "createdAt": row.get("created_at"),
+        "updatedAt": row.get("updated_at"),
+        "institutionName": source.get("institution_name") or "",
+        "sourceType": source.get("source_type") or "",
+        "sourceUrl": source.get("source_url") or "",
+        "name": extracted.get("name") or extracted.get("full_name") or row.get("record_key"),
+        "facultyName": extracted.get("faculty_name") or "",
+        "departmentName": extracted.get("department_name") or extracted.get("department") or "",
+        "profileUrl": extracted.get("profile_url") or "",
+        "email": extracted.get("email") or "",
+        "researchAreas": extracted.get("research_areas") or extracted.get("expertise") or [],
+        "extractedJson": extracted,
+    }
+
+
+def build_review_query(query_params):
+    status = (query_params.get("status", ["draft"])[0] or "draft").strip()
+    record_type = (query_params.get("recordType", ["faculty_member"])[0] or "faculty_member").strip()
+    if status != "all" and status not in REVIEW_STATUSES:
+        raise ValueError("Unknown review status")
+    if record_type != "all" and record_type not in REVIEW_RECORD_TYPES:
+        raise ValueError("Unknown record type")
+
+    params = {
+        "select": "id,source_id,record_key,record_type,review_status,confidence,notes,extracted_json,created_at,updated_at",
+        "order": "updated_at.desc",
+    }
+    if status != "all":
+        params["review_status"] = f"eq.{status}"
+    if record_type != "all":
+        params["record_type"] = f"eq.{record_type}"
+
+    department = (query_params.get("department", [""])[0] or "").strip()
+    faculty = (query_params.get("faculty", [""])[0] or "").strip()
+    search = (query_params.get("q", [""])[0] or "").strip()
+    if department:
+        params["extracted_json->>department_name"] = f"eq.{department}"
+    if faculty:
+        params["extracted_json->>faculty_name"] = f"eq.{faculty}"
+    if search:
+        params["or"] = (
+            f"(extracted_json->>name.ilike.*{search}*,"
+            f"extracted_json->>full_name.ilike.*{search}*,"
+            f"record_key.ilike.*{search}*)"
+        )
+
+    source_ids = get_matching_source_ids(
+        institution=(query_params.get("institution", [""])[0] or "").strip(),
+        source_type=(query_params.get("sourceType", [""])[0] or "").strip(),
+    )
+    if source_ids is not None:
+        if not source_ids:
+            params["source_id"] = "in.(00000000-0000-0000-0000-000000000000)"
+        else:
+            params["source_id"] = in_filter(source_ids)
+
+    limit = min(max(int(query_params.get("limit", ["50"])[0] or 50), 1), 200)
+    offset = max(int(query_params.get("offset", ["0"])[0] or 0), 0)
+    params["limit"] = str(limit)
+    params["offset"] = str(offset)
+    return params, limit, offset
+
+
+def fetch_review_records(query_params):
+    params, limit, offset = build_review_query(query_params)
+    rows, headers = supabase_request(
+        "GET",
+        "intake_extracted_records",
+        params=params,
+        prefer="count=exact",
+    )
+    sources = fetch_sources([row.get("source_id") for row in rows])
+    records = [normalize_review_record(row, sources.get(row.get("source_id"))) for row in rows]
+    total = parse_total_count(headers, len(records))
+    return {
+        "records": records,
+        "total": total,
+        "limit": limit,
+        "offset": offset,
+        "hasMore": offset + limit < total,
+    }
+
+
+def fetch_review_summary(query_params):
+    status = (query_params.get("status", ["draft"])[0] or "draft").strip()
+    record_type = (query_params.get("recordType", ["faculty_member"])[0] or "faculty_member").strip()
+    rows = []
+    page_size = 1000
+    offset = 0
+    while True:
+        params = {
+            "select": "id,source_id,record_type,review_status,extracted_json",
+            "order": "updated_at.desc",
+            "limit": str(page_size),
+            "offset": str(offset),
+        }
+        if status != "all":
+            params["review_status"] = f"eq.{status}"
+        if record_type != "all":
+            params["record_type"] = f"eq.{record_type}"
+        page_rows, _ = supabase_request("GET", "intake_extracted_records", params=params)
+        rows.extend(page_rows)
+        if len(page_rows) < page_size:
+            break
+        offset += page_size
+
+    sources = fetch_sources([row.get("source_id") for row in rows])
+
+    status_counts = {}
+    institutions = {}
+    faculties = {}
+    departments = {}
+    for row in rows:
+        extracted = row.get("extracted_json") or {}
+        source = sources.get(row.get("source_id"), {})
+        status_key = row.get("review_status") or "unknown"
+        institution = source.get("institution_name") or "Unknown institution"
+        faculty = extracted.get("faculty_name") or "Unknown faculty"
+        department = (
+            extracted.get("department_name")
+            or extracted.get("department")
+            or "Unknown department"
+        )
+        status_counts[status_key] = status_counts.get(status_key, 0) + 1
+        institutions[institution] = institutions.get(institution, 0) + 1
+        faculties[faculty] = faculties.get(faculty, 0) + 1
+        departments[department] = departments.get(department, 0) + 1
+
+    def top_items(items, limit=40):
+        return [
+            {"name": name, "count": count}
+            for name, count in sorted(items.items(), key=lambda item: (-item[1], item[0]))[:limit]
+        ]
+
+    return {
+        "total": len(rows),
+        "statuses": status_counts,
+        "institutions": top_items(institutions),
+        "faculties": top_items(faculties),
+        "departments": top_items(departments, 80),
+    }
+
+
+def update_review_status(ids, status, notes=None):
+    if status not in REVIEW_STATUSES:
+        raise ValueError("Unknown review status")
+    ids = unique([str(item) for item in ids if item])
+    if not ids:
+        raise ValueError("Select at least one record")
+    payload = {
+        "review_status": status,
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+    }
+    if status == "verified":
+        payload["verified_at"] = datetime.now(timezone.utc).isoformat()
+    elif status in {"draft", "needs_review", "rejected"}:
+        payload["verified_at"] = None
+    if notes is not None:
+        payload["notes"] = notes
+    rows, _ = supabase_request(
+        "PATCH",
+        "intake_extracted_records",
+        params={"id": in_filter(ids)},
+        payload=payload,
+        prefer="return=representation",
+    )
+    return {"updated": len(rows), "records": rows}
+
+
+def update_review_record(record_id, extracted_json=None, notes=None):
+    if not record_id:
+        raise ValueError("Missing record id")
+    payload = {"updated_at": datetime.now(timezone.utc).isoformat()}
+    if extracted_json is not None:
+        if not isinstance(extracted_json, dict):
+            raise ValueError("extractedJson must be an object")
+        payload["extracted_json"] = extracted_json
+    if notes is not None:
+        payload["notes"] = notes
+    rows, _ = supabase_request(
+        "PATCH",
+        "intake_extracted_records",
+        params={"id": f"eq.{record_id}"},
+        payload=payload,
+        prefer="return=representation",
+    )
+    if not rows:
+        raise ValueError("Record was not updated")
+    sources = fetch_sources([rows[0].get("source_id")])
+    return normalize_review_record(rows[0], sources.get(rows[0].get("source_id")))
 
 
 def list_feeds():
@@ -166,6 +462,18 @@ class IntakeHandler(BaseHTTPRequestHandler):
             except Exception as error:
                 self.send_error_json(str(error), HTTPStatus.BAD_REQUEST)
             return
+        if parsed.path == "/api/review":
+            try:
+                self.send_json(fetch_review_records(parse_qs(parsed.query)))
+            except Exception as error:
+                self.send_error_json(str(error), HTTPStatus.BAD_REQUEST)
+            return
+        if parsed.path == "/api/review/summary":
+            try:
+                self.send_json(fetch_review_summary(parse_qs(parsed.query)))
+            except Exception as error:
+                self.send_error_json(str(error), HTTPStatus.BAD_REQUEST)
+            return
         self.serve_static(parsed.path)
 
     def do_POST(self):
@@ -178,6 +486,12 @@ class IntakeHandler(BaseHTTPRequestHandler):
             return
         if parsed.path == "/api/config":
             self.handle_config()
+            return
+        if parsed.path == "/api/review/status":
+            self.handle_review_status()
+            return
+        if parsed.path == "/api/review/record":
+            self.handle_review_record()
             return
         self.send_error_json("Not found", HTTPStatus.NOT_FOUND)
 
@@ -265,6 +579,38 @@ class IntakeHandler(BaseHTTPRequestHandler):
                     "stderr": result.stderr[-8000:],
                 },
                 status=HTTPStatus.OK if result.returncode == 0 else HTTPStatus.BAD_REQUEST,
+            )
+        except Exception as error:
+            self.send_error_json(str(error), HTTPStatus.BAD_REQUEST)
+
+    def handle_review_status(self):
+        try:
+            payload = self.read_json()
+            self.send_json(
+                {
+                    "ok": True,
+                    **update_review_status(
+                        payload.get("ids") or [],
+                        payload.get("status") or "",
+                        payload.get("notes"),
+                    ),
+                }
+            )
+        except Exception as error:
+            self.send_error_json(str(error), HTTPStatus.BAD_REQUEST)
+
+    def handle_review_record(self):
+        try:
+            payload = self.read_json()
+            self.send_json(
+                {
+                    "ok": True,
+                    "record": update_review_record(
+                        payload.get("id"),
+                        payload.get("extractedJson"),
+                        payload.get("notes"),
+                    ),
+                }
             )
         except Exception as error:
             self.send_error_json(str(error), HTTPStatus.BAD_REQUEST)

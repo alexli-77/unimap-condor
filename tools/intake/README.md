@@ -128,6 +128,31 @@ The import writes to:
 All records start as `draft`. Front-end features should only use reviewed
 records after they are marked `verified`.
 
+## Review And Verify
+
+Open the local UI:
+
+```bash
+tools/intake/run_ui.sh
+```
+
+Use the `Review staging` section to:
+
+- filter records by status, record type, institution, faculty, department, or name
+- inspect source-backed extracted JSON
+- fix extracted fields such as `name`, `faculty_name`, `department_name`, `profile_url`, or `research_areas`
+- add internal review notes
+- mark selected records as `verified`, `needs_review`, or `rejected`
+
+Only records with `review_status = 'verified'` are exposed through the public
+faculty views used by the map:
+
+- `university_faculty_directory_public`
+- `university_faculty_department_summary_public`
+
+The review UI uses the local ignored `tools/intake/.env` secret key through the
+Python server. The browser never receives the Supabase Secret API key.
+
 ## Review Rules
 
 - Keep the original `source_url`.

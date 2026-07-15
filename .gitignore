@@ -21,3 +21,5 @@ tools/intake/scrapy/.venv/
 tools/intake/scrapy/output/*
 !tools/intake/scrapy/output/
 !tools/intake/scrapy/output/.gitkeep
+.vercel
+.worktrees/

@@ -9,6 +9,8 @@
     "preview": "vite preview --host 0.0.0.0",
     "test:recommendations": "rm -rf .tmp-recommendation-tests && tsc --module ES2022 --moduleResolution Bundler --target ES2022 --lib ES2022,DOM --strict --esModuleInterop --skipLibCheck --resolveJsonModule --outDir .tmp-recommendation-tests --rootDir . --noEmit false tests/recommendationPolicy.test.ts src/recommendationPolicy.ts src/types.ts && node --experimental-specifier-resolution=node .tmp-recommendation-tests/tests/recommendationPolicy.test.js",
     "test:local-rankings": "node tests/localRankings.test.mjs",
+    "test:ranking-sources": "rm -rf .tmp-ranking-tests && tsc --module ES2022 --moduleResolution Bundler --target ES2022 --lib ES2022,DOM --strict --esModuleInterop --skipLibCheck --resolveJsonModule --outDir .tmp-ranking-tests --rootDir . --noEmit false tests/rankingSources.test.ts src/rankingSources.ts && node --experimental-specifier-resolution=node .tmp-ranking-tests/tests/rankingSources.test.js",
+    "test": "npm run test:recommendations && npm run test:local-rankings && npm run test:ranking-sources",
     "lint": "eslint .",
     "format": "prettier --write \"src/**/*.{ts,tsx,css}\"",
     "format:check": "prettier --check \"src/**/*.{ts,tsx,css}\""

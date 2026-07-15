@@ -24,6 +24,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api, onDataSourceChange, type DataSource } from "./api";
 import mascotLogo from "../docs/assets/mascot.webp";
 import { WelcomeOverlay } from "./components/WelcomeOverlay";
+import { SchoolDataFallback } from "./components/SchoolDataFallback";
 import {
   RANKINGS_DISCLAIMER,
   RANKING_LIST_LIMIT,
@@ -3344,10 +3345,7 @@ function DecisionPanel({
       </div>
 
       {!loading && totalFacts === 0 ? (
-        <div className="advisor-empty">
-          <UserRoundSearch size={20} />
-          <p>No verified decision facts linked to {p.universityName} yet.</p>
-        </div>
+        <SchoolDataFallback universityName={p.universityName} context="decision" />
       ) : null}
 
       {programs.length ? <DecisionFactSection title="Programs" facts={programs} /> : null}
@@ -3364,18 +3362,20 @@ function DecisionPanel({
         <DecisionFactSection title="Immigration pathways" facts={immigration} />
       ) : null}
 
-      <div className="decision-gaps-card">
-        <strong>Missing info</strong>
-        {interpretation.missing.length ? (
-          <ul>
-            {interpretation.missing.map((gap) => (
-              <li key={gap}>{gap}</li>
-            ))}
-          </ul>
-        ) : (
-          <p>No blocking gaps from connected facts.</p>
-        )}
-      </div>
+      {totalFacts > 0 ? (
+        <div className="decision-gaps-card">
+          <strong>Missing info</strong>
+          {interpretation.missing.length ? (
+            <ul>
+              {interpretation.missing.map((gap) => (
+                <li key={gap}>{gap}</li>
+              ))}
+            </ul>
+          ) : (
+            <p>No blocking gaps from connected facts.</p>
+          )}
+        </div>
+      ) : null}
 
       <div className="decision-source-row">
         <span>{facts?.sourceLabel ?? "Decision facts"}</span>
@@ -3630,10 +3630,7 @@ function FacultyPanel({
       {loading && <InlineLoading label="Loading faculty index" />}
 
       {!loading && departments.length === 0 ? (
-        <div className="advisor-empty">
-          <UserRoundSearch size={20} />
-          <p>No faculty structure has been linked to this university yet.</p>
-        </div>
+        <SchoolDataFallback universityName={p.universityName} context="faculty" />
       ) : null}
 
       {departments.length ? (

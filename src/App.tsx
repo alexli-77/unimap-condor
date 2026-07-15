@@ -2,6 +2,7 @@ import {
   ArrowLeftRight,
   Building2,
   ChevronDown,
+  Compass,
   Download,
   ExternalLink,
   Globe2,
@@ -21,6 +22,7 @@ import maplibregl, { Map as MapLibreMap } from "maplibre-gl";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api, onDataSourceChange, type DataSource } from "./api";
 import mascotLogo from "../docs/assets/mascot.webp";
+import { WelcomeOverlay } from "./components/WelcomeOverlay";
 import {
   defaultRecommendationPolicy,
   findMatchingTerms,
@@ -187,9 +189,29 @@ const defaultPreferenceProfile: PreferenceProfile = {
   acceptsNichePrograms: true,
   notes: ""
 };
+// North America CS master's starter template used by the first-run welcome
+// layer. Pre-fills the fields the fit engine reads so new users get signals
+// immediately instead of staring at an empty preference form.
+const northAmericaCsTemplate: PreferenceProfile = {
+  ...defaultPreferenceProfile,
+  degreeLevel: "Master",
+  targetCountries: "Canada, United States",
+  targetCities: "",
+  budgetCurrency: "USD",
+  maxTuition: "",
+  fundingRequirement: "preferred",
+  subjectAreas: "Computer Science, Software Engineering, AI, Machine Learning",
+  researchKeywords: "machine learning, NLP, systems, HCI",
+  employmentPriority: "high",
+  researchPriority: "medium",
+  immigrationPriority: "high",
+  notes: "North America CS master's shortlist. Adjust the template to match your own profile."
+};
+
 const favoritesStorageKey = "unimap.favorites";
 const preferenceStorageKey = "unimap.preferenceProfile";
 const schoolDecisionsStorageKey = "unimap.schoolDecisions";
+const welcomeDismissedStorageKey = "unimap.welcomeDismissed";
 const facultyPageSize = 30;
 
 function isFavoriteKind(value: unknown): value is FavoriteKind {
@@ -771,9 +793,16 @@ export function App() {
   const [compareIds, setCompareIds] = useState<number[]>([]);
   const [activeLeftPanel, setActiveLeftPanel] = useState<LeftPanel | null>(null);
   const [isConfigOpen, setIsConfigOpen] = useState(false);
+  const [configTemplate, setConfigTemplate] = useState<PreferenceProfile | null>(null);
   const [preferenceProfile, setPreferenceProfile] = useState<PreferenceProfile>(() =>
     loadPreferenceProfile()
   );
+  const [showWelcome, setShowWelcome] = useState(() => {
+    if (typeof window === "undefined") return false;
+    const dismissed = localStorage.getItem(welcomeDismissedStorageKey) === "true";
+    return !dismissed && !hasPreferenceProfile(loadPreferenceProfile());
+  });
+  const [toast, setToast] = useState("");
   const [favorites, setFavorites] = useState<FavoriteItem[]>(() => {
     const saved = localStorage.getItem(favoritesStorageKey);
     if (!saved) return [];
@@ -974,15 +1003,48 @@ export function App() {
     setActiveLeftPanel((current) => (current === panel ? null : panel));
   };
 
-  const savePreferenceProfile = useCallback((profile: PreferenceProfile) => {
-    const nextProfile: PreferenceProfile = {
-      ...profile,
-      schemaVersion: 1,
-      updatedAt: new Date().toISOString()
-    };
-    localStorage.setItem(preferenceStorageKey, JSON.stringify(nextProfile));
-    setPreferenceProfile(nextProfile);
+  const savePreferenceProfile = useCallback(
+    (profile: PreferenceProfile) => {
+      const nextProfile: PreferenceProfile = {
+        ...profile,
+        schemaVersion: 1,
+        updatedAt: new Date().toISOString()
+      };
+      localStorage.setItem(preferenceStorageKey, JSON.stringify(nextProfile));
+      setPreferenceProfile(nextProfile);
+      setConfigTemplate(null);
+      if (hasPreferenceProfile(nextProfile)) {
+        const unlocked = data?.features.length ?? 0;
+        setToast(
+          unlocked
+            ? `Fit analysis unlocked for ${unlocked} schools.`
+            : "Preferences saved. Fit analysis is ready as soon as schools load."
+        );
+        localStorage.setItem(welcomeDismissedStorageKey, "true");
+        setShowWelcome(false);
+      }
+    },
+    [data]
+  );
+
+  useEffect(() => {
+    if (!toast) return;
+    const timeout = window.setTimeout(() => setToast(""), 6000);
+    return () => window.clearTimeout(timeout);
+  }, [toast]);
+
+  const dismissWelcome = useCallback(() => {
+    localStorage.setItem(welcomeDismissedStorageKey, "true");
+    setShowWelcome(false);
   }, []);
+
+  const startWithTemplate = useCallback(() => {
+    setConfigTemplate(northAmericaCsTemplate);
+    setIsConfigOpen(true);
+    setShowWelcome(false);
+  }, []);
+
+  const openGuide = useCallback(() => setShowWelcome(true), []);
 
   const exportWorkspace = useCallback(() => {
     const backup: WorkspaceBackup = {
@@ -1101,14 +1163,32 @@ export function App() {
             </span>
             <span>Prefs</span>
           </button>
+          <button
+            className="map-nav-item"
+            type="button"
+            onClick={openGuide}
+            title="Open the getting-started guide"
+          >
+            <span className="map-nav-icon">
+              <Compass size={25} />
+            </span>
+            <span>Guide</span>
+          </button>
         </aside>
 
         {isConfigOpen && (
           <PreferenceDialog
-            profile={preferenceProfile}
+            profile={configTemplate ?? preferenceProfile}
             onSave={savePreferenceProfile}
-            onClose={() => setIsConfigOpen(false)}
+            onClose={() => {
+              setIsConfigOpen(false);
+              setConfigTemplate(null);
+            }}
           />
+        )}
+
+        {showWelcome && (
+          <WelcomeOverlay onStartTemplate={startWithTemplate} onSkip={dismissWelcome} />
         )}
 
         {activeLeftPanel && (
@@ -1261,6 +1341,20 @@ export function App() {
             <div className="banner data-source" title="Showing bundled offline data">
               <Layers3 size={14} />
               Local data
+            </div>
+          )}
+          {toast && (
+            <div className="banner toast" role="status">
+              <Star size={14} fill="currentColor" />
+              {toast}
+              <button
+                className="banner-close"
+                type="button"
+                aria-label="Dismiss message"
+                onClick={() => setToast("")}
+              >
+                <X size={13} />
+              </button>
             </div>
           )}
           {error && <div className="banner error">{error}</div>}

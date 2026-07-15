@@ -15,6 +15,7 @@ vite.config.d.ts
 coverage/
 .tmp-recommendation-tests/
 .tmp-ranking-tests/
+.tmp-us-decision-tests/
 __pycache__/
 *.py[cod]
 tools/intake/scrapy/.venv/

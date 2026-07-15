@@ -20,7 +20,7 @@ import {
 import maplibregl, { Map as MapLibreMap } from "maplibre-gl";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api } from "./api";
-import mascotLogo from "../docs/assets/unimap-condor-mascot.png";
+import mascotLogo from "../docs/assets/mascot.webp";
 import {
   defaultRecommendationPolicy,
   findMatchingTerms,

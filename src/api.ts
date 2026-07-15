@@ -12,9 +12,6 @@ import type {
   SourceAvailability,
   UniversityDetail
 } from "./types";
-import { localDecisionFacts } from "./localDecisionFacts";
-import { localFacultyDirectory } from "./localFacultyDirectory";
-import { localAdvisorCards } from "./localAdvisors";
 import {
   getLocalRankingCollection,
   getLocalUniversityDetail,
@@ -155,18 +152,20 @@ function mapAdvisorRow(row: any): AdvisorCard {
   };
 }
 
-function getLocalAdvisorCards(universityName: string) {
+async function getLocalAdvisorCards(universityName: string) {
+  const { localAdvisorCards } = await import("./localAdvisors");
   return localAdvisorCards
     .filter((advisor) => advisorMatchesUniversity(advisor, universityName))
     .sort((a, b) => (b.priorityScore ?? 0) - (a.priorityScore ?? 0));
 }
 
-function getFacultyDirectoryEntries(universityName: string) {
+async function getFacultyDirectoryEntries(universityName: string) {
   const cacheKey = normalizeName(universityName);
   if (facultyDirectoryCache.has(cacheKey)) {
     return facultyDirectoryCache.get(cacheKey)!;
   }
 
+  const { localFacultyDirectory } = await import("./localFacultyDirectory");
   const entries = localFacultyDirectory
     .filter((entry) => directoryEntryMatchesUniversity(entry, universityName))
     .sort((a, b) => a.fullName.localeCompare(b.fullName));
@@ -333,6 +332,7 @@ async function getSchoolDecisionFacts(
     }
   }
 
+  const { localDecisionFacts } = await import("./localDecisionFacts");
   const facts = buildDecisionFacts(universityName, localDecisionFacts, "Local verified facts");
   if (!signal) decisionFactsCache.set(cacheKey, facts);
   return facts;
@@ -377,7 +377,7 @@ async function getFacultyDirectorySummary(
 
   const summary = buildFacultySummary(
     universityName,
-    getFacultyDirectoryEntries(universityName),
+    await getFacultyDirectoryEntries(universityName),
     "Local faculty directory"
   );
   if (!signal) facultySummaryCache.set(cacheKey, summary);
@@ -434,7 +434,7 @@ async function getFacultyDirectoryPage(
     }
   }
 
-  const entries = getFacultyDirectoryEntries(universityName)
+  const entries = (await getFacultyDirectoryEntries(universityName))
     .filter((entry) => !departmentName || entry.departmentName === departmentName);
   const page = sliceFacultyPage(entries, offset, limit);
   if (!signal) facultyPageCache.set(cacheKey, page);
@@ -451,7 +451,7 @@ async function getAdvisorCards(
   }
 
   if (!supabase) {
-    const localCards = getLocalAdvisorCards(universityName);
+    const localCards = await getLocalAdvisorCards(universityName);
     if (!signal) advisorCache.set(cacheKey, localCards);
     return localCards;
   }
@@ -474,7 +474,7 @@ async function getAdvisorCards(
     return cards;
   } catch (error) {
     console.warn("Falling back to local advisor cards", error);
-    const localCards = getLocalAdvisorCards(universityName);
+    const localCards = await getLocalAdvisorCards(universityName);
     if (!signal) advisorCache.set(cacheKey, localCards);
     return localCards;
   }
@@ -572,14 +572,14 @@ export const api = {
     }
   },
   getSources: (signal?: AbortSignal) => request<Source[]>("/sources", signal),
-  getRankings: (
+  getRankings: async (
     source: string,
     year: string,
     subject: string,
     signal?: AbortSignal
   ) => {
-    const localCollection = getLocalRankingCollection(source, year, subject);
-    if (localCollection) return Promise.resolve(localCollection);
+    const localCollection = await getLocalRankingCollection(source, year, subject);
+    if (localCollection) return localCollection;
 
     return request<RankingFeatureCollection>(
       `/rankings?source=${encodeURIComponent(source)}&year=${encodeURIComponent(
@@ -600,13 +600,13 @@ export const api = {
       return universityCache.get(id)!;
     }
     try {
-      const detail = mergeLocalUniversityDetail(
+      const detail = await mergeLocalUniversityDetail(
         await request<UniversityDetail>(`/universities/${id}/rankings`, signal)
       );
       universityCache.set(id, detail);
       return detail;
     } catch (error) {
-      const localDetail = getLocalUniversityDetail(id);
+      const localDetail = await getLocalUniversityDetail(id);
       if (!localDetail) throw error;
       universityCache.set(id, localDetail);
       return localDetail;

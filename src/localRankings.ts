@@ -1,4 +1,3 @@
-import qs2027OverallRows from "./localRankings/qs2027Overall.json";
 import type {
   RankingFeatureCollection,
   Source,
@@ -27,8 +26,22 @@ const localQsSource: Source = {
   attribution: "Source: QS World University Rankings 2027 (QS Ltd.)"
 };
 
-const localQs2027Rows = qs2027OverallRows as LocalRankingRow[];
-const localQs2027ById = new Map(localQs2027Rows.map((row) => [row.id, row]));
+type Qs2027Data = {
+  rows: LocalRankingRow[];
+  byId: Map<number, LocalRankingRow>;
+};
+
+let qs2027Promise: Promise<Qs2027Data> | null = null;
+
+function loadQs2027(): Promise<Qs2027Data> {
+  if (!qs2027Promise) {
+    qs2027Promise = import("./localRankings/qs2027Overall.json").then((module) => {
+      const rows = (module.default ?? module) as LocalRankingRow[];
+      return { rows, byId: new Map(rows.map((row) => [row.id, row])) };
+    });
+  }
+  return qs2027Promise;
+}
 
 function isLocalQs2027Overall(source: string, year: string, subject: string) {
   return source === "QS" && year === "2027" && subject === "Overall";
@@ -38,16 +51,17 @@ function uniqueSortedYears(years: string[]) {
   return [...new Set(years)].sort((a, b) => Number(a) - Number(b));
 }
 
-export function getLocalRankingCollection(
+export async function getLocalRankingCollection(
   source: string,
   year: string,
   subject: string
-): RankingFeatureCollection | null {
+): Promise<RankingFeatureCollection | null> {
   if (!isLocalQs2027Overall(source, year, subject)) return null;
 
+  const { rows } = await loadQs2027();
   return {
     type: "FeatureCollection",
-    features: localQs2027Rows.map((row) => ({
+    features: rows.map((row) => ({
       type: "Feature",
       properties: {
         rankValue: row.rankValue,
@@ -104,8 +118,11 @@ export function mergeLocalAvailabilities(items: SourceAvailability[]) {
   ];
 }
 
-export function getLocalUniversityDetail(id: number): UniversityDetail | null {
-  const row = localQs2027ById.get(id);
+export async function getLocalUniversityDetail(
+  id: number
+): Promise<UniversityDetail | null> {
+  const { byId } = await loadQs2027();
+  const row = byId.get(id);
   if (!row) return null;
 
   return {
@@ -125,8 +142,11 @@ export function getLocalUniversityDetail(id: number): UniversityDetail | null {
   };
 }
 
-export function mergeLocalUniversityDetail(detail: UniversityDetail): UniversityDetail {
-  const row = localQs2027ById.get(detail.id);
+export async function mergeLocalUniversityDetail(
+  detail: UniversityDetail
+): Promise<UniversityDetail> {
+  const { byId } = await loadQs2027();
+  const row = byId.get(detail.id);
   if (!row) return detail;
 
   const qsGroup = detail.rankings.find((group) => group.source.id === localQsSource.id);

@@ -191,6 +191,8 @@ function scoreSchool(
   const p = feature.properties;
   const programs = context?.decisionFacts?.programs ?? [];
   const funding = context?.decisionFacts?.funding ?? [];
+  const employment = context?.decisionFacts?.employment ?? [];
+  const immigration = context?.decisionFacts?.immigration ?? [];
   const factText = [...programs, ...funding]
     .map(
       (fact) =>
@@ -318,12 +320,45 @@ function scoreSchool(
       );
   }
   if (preference.employmentPriority === "high") {
-    draft.missing.push(
-      "Employment outcomes, co-op, or job-market notes are not connected yet."
-    );
+    if (employment.length) {
+      draft.score += 6;
+      const labels = employment
+        .slice(0, 2)
+        .map((fact) => fact.title)
+        .join("; ");
+      draft.matched.push(`Employment/co-op evidence: ${labels}.`);
+    } else {
+      draft.missing.push(
+        "Employment outcomes, co-op, or job-market notes are not connected yet."
+      );
+    }
   }
   if (preference.immigrationPriority === "high") {
-    draft.missing.push("Immigration pathway notes are not connected yet.");
+    if (immigration.length) {
+      const immigrationText = immigration
+        .map((fact) => `${fact.title} ${fact.rawLabel}`)
+        .join(" ");
+      if (
+        /pgwp|post-graduation work permit|permanent residence|nominee|express entry|peq|csq/i.test(
+          immigrationText
+        )
+      ) {
+        draft.score += 6;
+        draft.matched.push(`Immigration pathway evidence: ${immigration[0].title}.`);
+      }
+      // Flag recent policy tightening so an active pathway does not read as risk-free.
+      if (
+        /closed|suspended|waitlist|no longer|requires? french|french-language|french language/i.test(
+          immigrationText
+        )
+      ) {
+        draft.concerns.push(
+          "Some immigration pathways changed recently (stream closed/suspended or added requirements); verify current provincial rules."
+        );
+      }
+    } else {
+      draft.missing.push("Immigration pathway notes are not connected yet.");
+    }
   }
 
   return buildResult(

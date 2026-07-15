@@ -70,6 +70,10 @@ function facts(
     programTopic?: string;
     degreeLevel?: string;
     fundingText?: string;
+    employmentTitle?: string;
+    employmentText?: string;
+    immigrationTitle?: string;
+    immigrationText?: string;
   }
 ): SchoolDecisionFacts {
   return {
@@ -104,6 +108,38 @@ function facts(
             evidenceUrl: "https://example.com/funding",
             sourceUrl: "https://example.com/funding",
             confidence: 1
+          }
+        ]
+      : [],
+    employment: options.employmentText
+      ? [
+          {
+            id: `${universityName}-employment`,
+            institutionName: universityName,
+            recordType: "employment",
+            title: options.employmentTitle ?? "Co-op pipeline",
+            amounts: [],
+            rawLabel: options.employmentText,
+            evidenceUrl: "https://example.com/employment",
+            sourceUrl: "https://example.com/employment",
+            confidence: 0.9,
+            verifiedAt: "2026-07-15"
+          }
+        ]
+      : [],
+    immigration: options.immigrationText
+      ? [
+          {
+            id: `${universityName}-immigration`,
+            institutionName: universityName,
+            recordType: "immigration",
+            title: options.immigrationTitle ?? "PGWP eligibility",
+            amounts: [],
+            rawLabel: options.immigrationText,
+            evidenceUrl: "https://example.com/immigration",
+            sourceUrl: "https://example.com/immigration",
+            confidence: 0.85,
+            verifiedAt: "2026-07-15"
           }
         ]
       : []
@@ -340,6 +376,50 @@ export const recommendationScenarios = [
       topDepartment: "Department of Computing and Software",
       topAdvisor: "se-llm-advisor",
       advisorMatchedIncludes: "software engineering"
+    }
+  },
+  {
+    id: "canada-employment-immigration-priority",
+    description:
+      "When employment and immigration priorities are high, a Canadian school with connected co-op and PGWP facts should outrank an otherwise-identical school with no such facts, and its explanation should cite the employment evidence.",
+    preference: preference({
+      targetCountries: "Canada",
+      subjectAreas: "Computer Science",
+      employmentPriority: "high",
+      immigrationPriority: "high"
+    }),
+    schools: [
+      {
+        id: "waterloo",
+        feature: school(9, "University of Waterloo", "Canada", "Waterloo", "Computer Science", 60),
+        facts: facts("University of Waterloo", {
+          employmentTitle: "MMath co-op work term",
+          employmentText:
+            "The MMath Computer Science co-operative program requires a full-time industry co-op work term.",
+          immigrationTitle: "Post-Graduation Work Permit eligibility",
+          immigrationText:
+            "Master's graduates are eligible for a 3-year Post-Graduation Work Permit (PGWP)."
+        })
+      },
+      {
+        id: "plainschool",
+        feature: school(10, "Plain Canadian University", "Canada", "Ottawa", "Computer Science", 60),
+        facts: facts("Plain Canadian University", {})
+      }
+    ],
+    departments: [
+      department("Cheriton School of Computer Science", ["Computer science", "Software engineering"], 60),
+      department("Department of Physics", ["Physics", "Astronomy"], 30)
+    ],
+    advisors: [
+      advisor("cs-advisor", "CS Advisor", ["Computer science", "Software engineering"], 88, "Cheriton School of Computer Science"),
+      advisor("physics-advisor", "Physics Advisor", ["Astrophysics"], 70, "Department of Physics")
+    ],
+    expectations: {
+      topSchool: "waterloo",
+      topDepartment: "Cheriton School of Computer Science",
+      topAdvisor: "cs-advisor",
+      schoolMatchedIncludes: "Employment/co-op evidence"
     }
   }
 ] as const;

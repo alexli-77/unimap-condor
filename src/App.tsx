@@ -3045,6 +3045,8 @@ function buildDecisionInterpretation(
   const p = feature.properties;
   const programs = facts?.programs ?? [];
   const funding = facts?.funding ?? [];
+  const employment = facts?.employment ?? [];
+  const immigration = facts?.immigration ?? [];
   const allFacts = [...programs, ...funding];
   const factText = allFacts
     .map(
@@ -3150,12 +3152,43 @@ function buildDecisionInterpretation(
     );
   }
   if (preferenceProfile.employmentPriority === "high") {
-    missing.push(
-      "Employment outcomes or co-op/city job-market notes are not connected yet."
-    );
+    if (employment.length) {
+      matched.push(
+        `Employment/co-op evidence: ${employment
+          .slice(0, 2)
+          .map((fact) => fact.title)
+          .join("; ")}.`
+      );
+    } else {
+      missing.push(
+        "Employment outcomes or co-op/city job-market notes are not connected yet."
+      );
+    }
   }
   if (preferenceProfile.immigrationPriority === "high") {
-    missing.push("Immigration pathway notes are not connected yet.");
+    if (immigration.length) {
+      const immigrationText = immigration
+        .map((fact) => `${fact.title} ${fact.rawLabel}`)
+        .join(" ");
+      if (
+        /pgwp|post-graduation work permit|permanent residence|nominee|express entry|peq|csq/i.test(
+          immigrationText
+        )
+      ) {
+        matched.push(`Immigration pathway evidence: ${immigration[0].title}.`);
+      }
+      if (
+        /closed|suspended|waitlist|no longer|requires? french|french-language|french language/i.test(
+          immigrationText
+        )
+      ) {
+        concerns.push(
+          "Some immigration pathways changed recently (stream closed/suspended or added requirements); verify current provincial rules."
+        );
+      }
+    } else {
+      missing.push("Immigration pathway notes are not connected yet.");
+    }
   }
 
   if (decision.keepReason.trim()) {
@@ -3211,6 +3244,10 @@ function DecisionPanel({
   const { facts, loading } = useSchoolDecisionFacts(feature);
   const programs = facts?.programs ?? [];
   const funding = facts?.funding ?? [];
+  const employment = facts?.employment ?? [];
+  const immigration = facts?.immigration ?? [];
+  const totalFacts =
+    programs.length + funding.length + employment.length + immigration.length;
   const interpretation = useMemo(
     () => buildDecisionInterpretation(feature, facts, preferenceProfile, decision),
     [feature, facts, preferenceProfile, decision]
@@ -3228,7 +3265,7 @@ function DecisionPanel({
         </div>
         <div>
           <span>Verified facts</span>
-          <strong>{programs.length + funding.length}</strong>
+          <strong>{totalFacts}</strong>
         </div>
         <div>
           <span>Open gaps</span>
@@ -3263,7 +3300,7 @@ function DecisionPanel({
         <p>{interpretation.nextAction}</p>
       </div>
 
-      {!loading && programs.length + funding.length === 0 ? (
+      {!loading && totalFacts === 0 ? (
         <div className="advisor-empty">
           <UserRoundSearch size={20} />
           <p>No verified decision facts linked to {p.universityName} yet.</p>
@@ -3274,6 +3311,14 @@ function DecisionPanel({
 
       {funding.length ? (
         <DecisionFactSection title="Funding & tuition" facts={funding} />
+      ) : null}
+
+      {employment.length ? (
+        <DecisionFactSection title="Employment & co-op" facts={employment} />
+      ) : null}
+
+      {immigration.length ? (
+        <DecisionFactSection title="Immigration pathways" facts={immigration} />
       ) : null}
 
       <div className="decision-gaps-card">
@@ -3291,9 +3336,11 @@ function DecisionPanel({
 
       <div className="decision-source-row">
         <span>{facts?.sourceLabel ?? "Decision facts"}</span>
-        {[...programs, ...funding].slice(0, 2).map((fact) => (
-          <ExternalChip key={fact.id} href={fact.evidenceUrl} label="Source" />
-        ))}
+        {[...programs, ...funding, ...employment, ...immigration]
+          .slice(0, 2)
+          .map((fact) => (
+            <ExternalChip key={fact.id} href={fact.evidenceUrl} label="Source" />
+          ))}
       </div>
     </div>
   );

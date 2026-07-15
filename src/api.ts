@@ -313,7 +313,9 @@ function buildDecisionFacts(
     universityName,
     sourceLabel,
     programs: matchingFacts.filter((fact) => fact.recordType === "program"),
-    funding: matchingFacts.filter((fact) => fact.recordType === "tuition_funding")
+    funding: matchingFacts.filter((fact) => fact.recordType === "tuition_funding"),
+    employment: matchingFacts.filter((fact) => fact.recordType === "employment"),
+    immigration: matchingFacts.filter((fact) => fact.recordType === "immigration")
   };
 }
 

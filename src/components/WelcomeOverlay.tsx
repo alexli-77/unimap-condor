@@ -38,7 +38,11 @@ export function WelcomeOverlay({
         aria-modal="true"
         aria-label="Welcome to UniMap Condor"
       >
-        <button className="icon-button welcome-close" aria-label="Skip guide" onClick={onSkip}>
+        <button
+          className="icon-button welcome-close"
+          aria-label="Skip guide"
+          onClick={onSkip}
+        >
           <X size={17} />
         </button>
 
@@ -47,7 +51,9 @@ export function WelcomeOverlay({
             <MapPin size={15} />
             North America CS master's shortlist workbench
           </div>
-          <h2>Turn a messy pile of schools into an executable shortlist in ~30 minutes.</h2>
+          <h2>
+            Turn a messy pile of schools into an executable shortlist in ~30 minutes.
+          </h2>
           <p>
             UniMap Condor helps you compare, track, and decide — so scattered admissions
             notes become a longlist and shortlist you can actually act on.

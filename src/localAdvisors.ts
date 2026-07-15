@@ -55,10 +55,20 @@ export const localAdvisorCards: AdvisorCard[] = [
     department: "Software Engineering / Mila",
     priority: "S",
     priorityScore: 98,
-    fitSummary: "Software quality, ML/AI systems reliability, LLM code generation benchmarks, and multi-agent evaluation.",
+    fitSummary:
+      "Software quality, ML/AI systems reliability, LLM code generation benchmarks, and multi-agent evaluation.",
     contactAngle: "LLM code generation QA/testing, robustness of AI software systems.",
-    researchAreas: ["Software quality", "AI reliability", "LLM code generation", "Multi-agent evaluation"],
-    targetPrograms: ["Software Engineering", "Computer Engineering", "Mila-affiliated research"],
+    researchAreas: [
+      "Software quality",
+      "AI reliability",
+      "LLM code generation",
+      "Multi-agent evaluation"
+    ],
+    targetPrograms: [
+      "Software Engineering",
+      "Computer Engineering",
+      "Mila-affiliated research"
+    ],
     outreachStatus: "External safer outreach",
     sourceLabel: "Vault advisor scan, 2026-05-25"
   },
@@ -70,9 +80,15 @@ export const localAdvisorCards: AdvisorCard[] = [
     department: "Software / Systems",
     priority: "S-",
     priorityScore: 94,
-    fitSummary: "Software systems performance, reliability, runtime monitoring, and infrastructure quality.",
+    fitSummary:
+      "Software systems performance, reliability, runtime monitoring, and infrastructure quality.",
     contactAngle: "AI software reliability, runtime monitoring, infra quality.",
-    researchAreas: ["Software systems", "Performance", "Reliability", "Runtime monitoring"],
+    researchAreas: [
+      "Software systems",
+      "Performance",
+      "Reliability",
+      "Runtime monitoring"
+    ],
     targetPrograms: ["Software Engineering", "Computer Engineering"],
     outreachStatus: "External safer outreach",
     sourceLabel: "Vault advisor scan, 2026-05-25"
@@ -85,9 +101,15 @@ export const localAdvisorCards: AdvisorCard[] = [
     department: "Software Engineering",
     priority: "A+",
     priorityScore: 91,
-    fitSummary: "Software engineering, logic programming, computer systems software, and LLM-assisted SE tools.",
+    fitSummary:
+      "Software engineering, logic programming, computer systems software, and LLM-assisted SE tools.",
     contactAngle: "LLM-assisted software engineering tools, program analysis, testing.",
-    researchAreas: ["Software engineering", "Logic programming", "Program analysis", "Testing"],
+    researchAreas: [
+      "Software engineering",
+      "Logic programming",
+      "Program analysis",
+      "Testing"
+    ],
     targetPrograms: ["Software Engineering"],
     outreachStatus: "External safer outreach",
     sourceLabel: "Vault advisor scan, 2026-05-25"
@@ -100,8 +122,10 @@ export const localAdvisorCards: AdvisorCard[] = [
     department: "Software Engineering",
     priority: "A+",
     priorityScore: 90,
-    fitSummary: "Software development, software engineering, systems, and knowledge representation.",
-    contactAngle: "Software systems and knowledge representation angle; recruiting signal found.",
+    fitSummary:
+      "Software development, software engineering, systems, and knowledge representation.",
+    contactAngle:
+      "Software systems and knowledge representation angle; recruiting signal found.",
     researchAreas: ["Software development", "Systems", "Knowledge representation"],
     targetPrograms: ["Software Engineering"],
     recruitingSignal: "Recruiting signal found",
@@ -118,7 +142,12 @@ export const localAdvisorCards: AdvisorCard[] = [
     priorityScore: 86,
     fitSummary: "Software engineering, AI, simulation, and knowledge representation.",
     contactAngle: "AI + simulation + software engineering; recruiting signal found.",
-    researchAreas: ["Software engineering", "AI", "Simulation", "Knowledge representation"],
+    researchAreas: [
+      "Software engineering",
+      "AI",
+      "Simulation",
+      "Knowledge representation"
+    ],
     targetPrograms: ["Software Engineering"],
     recruitingSignal: "Recruiting signal found",
     outreachStatus: "External safer outreach",
@@ -133,7 +162,8 @@ export const localAdvisorCards: AdvisorCard[] = [
     priority: "A",
     priorityScore: 84,
     fitSummary: "Software engineering and human factors.",
-    contactAngle: "Developer experience, human factors, and software engineering evaluation.",
+    contactAngle:
+      "Developer experience, human factors, and software engineering evaluation.",
     researchAreas: ["Software engineering", "Human factors", "Developer experience"],
     targetPrograms: ["Software Engineering"],
     outreachStatus: "External safer outreach",
@@ -223,9 +253,16 @@ export const localAdvisorCards: AdvisorCard[] = [
     department: "DIRO / Mila",
     priority: "Sensitive",
     priorityScore: 66,
-    fitSummary: "Human-AI interaction, dynamic programming languages, AI-assisted programming, and evaluation.",
-    contactAngle: "AI-assisted programming and human-AI evaluation, but handle relationship context carefully.",
-    researchAreas: ["Human-AI interaction", "Programming languages", "AI-assisted programming", "Evaluation"],
+    fitSummary:
+      "Human-AI interaction, dynamic programming languages, AI-assisted programming, and evaluation.",
+    contactAngle:
+      "AI-assisted programming and human-AI evaluation, but handle relationship context carefully.",
+    researchAreas: [
+      "Human-AI interaction",
+      "Programming languages",
+      "AI-assisted programming",
+      "Evaluation"
+    ],
     targetPrograms: ["DIRO", "Computer Science", "Mila-affiliated research"],
     politicalSensitivity: "High",
     outreachStatus: "Sensitive DIRO/UdeM list",
@@ -239,9 +276,15 @@ export const localAdvisorCards: AdvisorCard[] = [
     department: "DIRO / GEODES",
     priority: "Sensitive",
     priorityScore: 65,
-    fitSummary: "Model-driven engineering, code generation, agentic digital twins, and LLM prompt optimization.",
+    fitSummary:
+      "Model-driven engineering, code generation, agentic digital twins, and LLM prompt optimization.",
     contactAngle: "Model-driven engineering and code generation fit.",
-    researchAreas: ["Model-driven engineering", "Code generation", "Agentic digital twins", "Prompt optimization"],
+    researchAreas: [
+      "Model-driven engineering",
+      "Code generation",
+      "Agentic digital twins",
+      "Prompt optimization"
+    ],
     targetPrograms: ["DIRO", "Computer Science"],
     politicalSensitivity: "Medium",
     outreachStatus: "Sensitive DIRO/UdeM list",
@@ -287,10 +330,16 @@ export const localAdvisorCards: AdvisorCard[] = [
     department: "Computer Science",
     priority: "A+",
     priorityScore: 91,
-    fitSummary: "Official CS AI/ML faculty signal; strong fit for AI, machine learning, and language/knowledge-oriented systems.",
-    contactAngle: "Frame around AI systems evaluation, knowledge-intensive software tools, or LLM-assisted engineering.",
+    fitSummary:
+      "Official CS AI/ML faculty signal; strong fit for AI, machine learning, and language/knowledge-oriented systems.",
+    contactAngle:
+      "Frame around AI systems evaluation, knowledge-intensive software tools, or LLM-assisted engineering.",
     researchAreas: ["Artificial intelligence", "Machine learning", "Computer science"],
-    targetPrograms: ["Computer Science", "Computer Science Graduate Group", "AI/ML research"],
+    targetPrograms: [
+      "Computer Science",
+      "Computer Science Graduate Group",
+      "AI/ML research"
+    ],
     outreachStatus: "Official UC Davis CS source",
     profileUrl: "https://cs.ucdavis.edu/directory",
     sourceLabel: "UC Davis CS directory and AI/ML faculty page"
@@ -303,8 +352,10 @@ export const localAdvisorCards: AdvisorCard[] = [
     department: "Computer Science",
     priority: "A",
     priorityScore: 88,
-    fitSummary: "Listed in UC Davis CS AI/ML faculty; useful match for machine learning and applied AI directions.",
-    contactAngle: "Ask about ML research fit and whether current projects connect to software/system behavior.",
+    fitSummary:
+      "Listed in UC Davis CS AI/ML faculty; useful match for machine learning and applied AI directions.",
+    contactAngle:
+      "Ask about ML research fit and whether current projects connect to software/system behavior.",
     researchAreas: ["Machine learning", "Artificial intelligence", "Computer science"],
     targetPrograms: ["Computer Science", "AI/ML research"],
     outreachStatus: "Official UC Davis CS source",
@@ -319,8 +370,10 @@ export const localAdvisorCards: AdvisorCard[] = [
     department: "Computer Science",
     priority: "A",
     priorityScore: 86,
-    fitSummary: "Assistant professor listed in UC Davis CS AI/ML faculty; promising for current AI/ML research fit.",
-    contactAngle: "Position outreach around AI/ML research direction and possible graduate supervision fit.",
+    fitSummary:
+      "Assistant professor listed in UC Davis CS AI/ML faculty; promising for current AI/ML research fit.",
+    contactAngle:
+      "Position outreach around AI/ML research direction and possible graduate supervision fit.",
     researchAreas: ["Artificial intelligence", "Machine learning", "Computer science"],
     targetPrograms: ["Computer Science", "AI/ML research"],
     outreachStatus: "Official UC Davis CS source",
@@ -335,8 +388,10 @@ export const localAdvisorCards: AdvisorCard[] = [
     department: "Computer Science",
     priority: "A-",
     priorityScore: 84,
-    fitSummary: "CS faculty member with AI/ML directory signal; relevant for applied AI and computer vision-adjacent interests.",
-    contactAngle: "Use a concise AI/ML fit note and ask which current projects are open to graduate students.",
+    fitSummary:
+      "CS faculty member with AI/ML directory signal; relevant for applied AI and computer vision-adjacent interests.",
+    contactAngle:
+      "Use a concise AI/ML fit note and ask which current projects are open to graduate students.",
     researchAreas: ["Artificial intelligence", "Machine learning", "Computer science"],
     targetPrograms: ["Computer Science", "AI/ML research"],
     outreachStatus: "Official UC Davis CS source",
@@ -351,9 +406,16 @@ export const localAdvisorCards: AdvisorCard[] = [
     department: "Computer Science",
     priority: "A-",
     priorityScore: 82,
-    fitSummary: "Appears in UC Davis CS AI/ML and software research groupings; good bridge between AI and software engineering.",
-    contactAngle: "Frame around AI-assisted software engineering, empirical software behavior, or software analytics.",
-    researchAreas: ["Software", "Artificial intelligence", "Machine learning", "Computer science"],
+    fitSummary:
+      "Appears in UC Davis CS AI/ML and software research groupings; good bridge between AI and software engineering.",
+    contactAngle:
+      "Frame around AI-assisted software engineering, empirical software behavior, or software analytics.",
+    researchAreas: [
+      "Software",
+      "Artificial intelligence",
+      "Machine learning",
+      "Computer science"
+    ],
     targetPrograms: ["Computer Science", "Software research", "AI/ML research"],
     outreachStatus: "Official UC Davis CS source",
     profileUrl: "https://cs.ucdavis.edu/directory",
@@ -367,8 +429,10 @@ export const localAdvisorCards: AdvisorCard[] = [
     department: "Computer Science",
     priority: "B+",
     priorityScore: 78,
-    fitSummary: "UC Davis CS software faculty signal; relevant for programming tools, software correctness, and developer-facing systems.",
-    contactAngle: "Use a software correctness/tools angle, especially if connecting runtime behavior to engineering decisions.",
+    fitSummary:
+      "UC Davis CS software faculty signal; relevant for programming tools, software correctness, and developer-facing systems.",
+    contactAngle:
+      "Use a software correctness/tools angle, especially if connecting runtime behavior to engineering decisions.",
     researchAreas: ["Software", "Programming tools", "Computer science"],
     targetPrograms: ["Computer Science", "Software research"],
     outreachStatus: "Official UC Davis CS source",
@@ -383,8 +447,10 @@ export const localAdvisorCards: AdvisorCard[] = [
     department: "Computer Science",
     priority: "B+",
     priorityScore: 76,
-    fitSummary: "UC Davis CS software faculty signal; possible fit for program analysis and software engineering foundations.",
-    contactAngle: "Frame around program analysis, software verification, or tool-assisted software understanding.",
+    fitSummary:
+      "UC Davis CS software faculty signal; possible fit for program analysis and software engineering foundations.",
+    contactAngle:
+      "Frame around program analysis, software verification, or tool-assisted software understanding.",
     researchAreas: ["Software", "Program analysis", "Computer science"],
     targetPrograms: ["Computer Science", "Software research"],
     outreachStatus: "Official UC Davis CS source",
@@ -399,8 +465,10 @@ export const localAdvisorCards: AdvisorCard[] = [
     department: "Computer Science",
     priority: "B+",
     priorityScore: 74,
-    fitSummary: "UC Davis CS software/systems faculty signal; relevant for software and systems security-oriented interests.",
-    contactAngle: "Use a systems/software angle and keep the first message narrowly tied to current lab work.",
+    fitSummary:
+      "UC Davis CS software/systems faculty signal; relevant for software and systems security-oriented interests.",
+    contactAngle:
+      "Use a systems/software angle and keep the first message narrowly tied to current lab work.",
     researchAreas: ["Software", "Systems", "Security", "Computer science"],
     targetPrograms: ["Computer Science", "Software research", "Systems research"],
     outreachStatus: "Official UC Davis CS source",
@@ -415,10 +483,20 @@ export const localAdvisorCards: AdvisorCard[] = [
     department: "Electrical and Computer Engineering / Computer Science",
     priority: "B",
     priorityScore: 71,
-    fitSummary: "ECE directory lists Computer Science affiliation; useful bridge for computer engineering and systems angles.",
-    contactAngle: "Use computer engineering or systems implementation angle rather than pure CS theory.",
-    researchAreas: ["Computer engineering", "Systems", "Electrical and computer engineering"],
-    targetPrograms: ["Electrical and Computer Engineering", "Computer Engineering", "Computer Science"],
+    fitSummary:
+      "ECE directory lists Computer Science affiliation; useful bridge for computer engineering and systems angles.",
+    contactAngle:
+      "Use computer engineering or systems implementation angle rather than pure CS theory.",
+    researchAreas: [
+      "Computer engineering",
+      "Systems",
+      "Electrical and computer engineering"
+    ],
+    targetPrograms: [
+      "Electrical and Computer Engineering",
+      "Computer Engineering",
+      "Computer Science"
+    ],
     outreachStatus: "Official UC Davis ECE source",
     profileUrl: "https://ece.ucdavis.edu/directory",
     sourceLabel: "UC Davis ECE directory"
@@ -431,10 +509,21 @@ export const localAdvisorCards: AdvisorCard[] = [
     department: "Electrical and Computer Engineering",
     priority: "B",
     priorityScore: 70,
-    fitSummary: "ECE directory links Davis AI, Robotics, and Edge Research; useful for AI systems, robotics, and edge computing interests.",
-    contactAngle: "Frame around AI systems, edge intelligence, or robotics infrastructure.",
-    researchAreas: ["Artificial intelligence", "Robotics", "Edge research", "Electrical and computer engineering"],
-    targetPrograms: ["Electrical and Computer Engineering", "Computer Engineering", "AI systems research"],
+    fitSummary:
+      "ECE directory links Davis AI, Robotics, and Edge Research; useful for AI systems, robotics, and edge computing interests.",
+    contactAngle:
+      "Frame around AI systems, edge intelligence, or robotics infrastructure.",
+    researchAreas: [
+      "Artificial intelligence",
+      "Robotics",
+      "Edge research",
+      "Electrical and computer engineering"
+    ],
+    targetPrograms: [
+      "Electrical and Computer Engineering",
+      "Computer Engineering",
+      "AI systems research"
+    ],
     outreachStatus: "Official UC Davis ECE source",
     profileUrl: "https://ece.ucdavis.edu/directory",
     sourceLabel: "UC Davis ECE directory"
@@ -447,10 +536,21 @@ export const localAdvisorCards: AdvisorCard[] = [
     department: "Computing and Software",
     priority: "A+",
     priorityScore: 90,
-    fitSummary: "Computing & Software faculty; strong first-pass match for machine learning and theory-adjacent AI interests.",
-    contactAngle: "Frame around ML foundations, reliable AI evaluation, or theory-informed software intelligence.",
-    researchAreas: ["Machine learning", "Artificial intelligence", "Theory of computation", "Computer science"],
-    targetPrograms: ["Computing and Software", "Computer Science", "Software Engineering"],
+    fitSummary:
+      "Computing & Software faculty; strong first-pass match for machine learning and theory-adjacent AI interests.",
+    contactAngle:
+      "Frame around ML foundations, reliable AI evaluation, or theory-informed software intelligence.",
+    researchAreas: [
+      "Machine learning",
+      "Artificial intelligence",
+      "Theory of computation",
+      "Computer science"
+    ],
+    targetPrograms: [
+      "Computing and Software",
+      "Computer Science",
+      "Software Engineering"
+    ],
     outreachStatus: "Official McMaster Engineering source",
     profileUrl: "https://www.eng.mcmaster.ca/cas/faculty/dr-hassan-ashtiani/",
     sourceLabel: "McMaster Engineering faculty directory"
@@ -463,9 +563,16 @@ export const localAdvisorCards: AdvisorCard[] = [
     department: "Computing and Software",
     priority: "A",
     priorityScore: 87,
-    fitSummary: "Computing & Software faculty; useful signal for AI, machine learning, and data-centric computing.",
-    contactAngle: "Ask about current ML/data projects and whether software-system behavior is a possible application area.",
-    researchAreas: ["Machine learning", "Data-centric computing", "Applied computing", "Computer science"],
+    fitSummary:
+      "Computing & Software faculty; useful signal for AI, machine learning, and data-centric computing.",
+    contactAngle:
+      "Ask about current ML/data projects and whether software-system behavior is a possible application area.",
+    researchAreas: [
+      "Machine learning",
+      "Data-centric computing",
+      "Applied computing",
+      "Computer science"
+    ],
     targetPrograms: ["Computing and Software", "Computer Science"],
     outreachStatus: "Official McMaster Engineering source",
     profileUrl: "https://www.eng.mcmaster.ca/cas/faculty/dr-lingyang-chu/",
@@ -479,10 +586,20 @@ export const localAdvisorCards: AdvisorCard[] = [
     department: "Computing and Software",
     priority: "A",
     priorityScore: 85,
-    fitSummary: "Chair of Computing & Software; strong department-level signal for software engineering and model-driven systems.",
-    contactAngle: "Use a software engineering / model-based systems angle, especially for decision-support tooling.",
-    researchAreas: ["Software engineering", "Model-driven engineering", "Computing systems"],
-    targetPrograms: ["Software Engineering", "Computing and Software", "Computer Science"],
+    fitSummary:
+      "Chair of Computing & Software; strong department-level signal for software engineering and model-driven systems.",
+    contactAngle:
+      "Use a software engineering / model-based systems angle, especially for decision-support tooling.",
+    researchAreas: [
+      "Software engineering",
+      "Model-driven engineering",
+      "Computing systems"
+    ],
+    targetPrograms: [
+      "Software Engineering",
+      "Computing and Software",
+      "Computer Science"
+    ],
     outreachStatus: "Official McMaster Engineering source",
     profileUrl: "https://www.eng.mcmaster.ca/cas/faculty/dr-richard-paige/",
     sourceLabel: "McMaster Engineering faculty directory"
@@ -495,9 +612,16 @@ export const localAdvisorCards: AdvisorCard[] = [
     department: "Computing and Software",
     priority: "A-",
     priorityScore: 82,
-    fitSummary: "Computing & Software research leadership signal; relevant for information systems and data quality directions.",
-    contactAngle: "Frame around data quality, interpretable decision data, or application intelligence for admissions/product systems.",
-    researchAreas: ["Information systems", "Data management", "Data quality", "Computer science"],
+    fitSummary:
+      "Computing & Software research leadership signal; relevant for information systems and data quality directions.",
+    contactAngle:
+      "Frame around data quality, interpretable decision data, or application intelligence for admissions/product systems.",
+    researchAreas: [
+      "Information systems",
+      "Data management",
+      "Data quality",
+      "Computer science"
+    ],
     targetPrograms: ["Computing and Software", "Computer Science"],
     outreachStatus: "Official McMaster Engineering source",
     profileUrl: "https://www.eng.mcmaster.ca/cas/faculty/dr-fei-chiang/",
@@ -511,8 +635,10 @@ export const localAdvisorCards: AdvisorCard[] = [
     department: "Computing and Software",
     priority: "A-",
     priorityScore: 80,
-    fitSummary: "Computing & Software graduate advisor; strong software engineering/formal methods department signal.",
-    contactAngle: "Use software correctness, requirements, or safety-critical systems as the opening angle.",
+    fitSummary:
+      "Computing & Software graduate advisor; strong software engineering/formal methods department signal.",
+    contactAngle:
+      "Use software correctness, requirements, or safety-critical systems as the opening angle.",
     researchAreas: ["Software engineering", "Formal methods", "Software correctness"],
     targetPrograms: ["Software Engineering", "Computing and Software"],
     outreachStatus: "Official McMaster Engineering source",
@@ -527,8 +653,10 @@ export const localAdvisorCards: AdvisorCard[] = [
     department: "Computing and Software",
     priority: "B+",
     priorityScore: 78,
-    fitSummary: "Software Engineering undergraduate advisor; relevant for software engineering and requirements/modeling interests.",
-    contactAngle: "Frame around requirements, explainable engineering artifacts, or software decision support.",
+    fitSummary:
+      "Software Engineering undergraduate advisor; relevant for software engineering and requirements/modeling interests.",
+    contactAngle:
+      "Frame around requirements, explainable engineering artifacts, or software decision support.",
     researchAreas: ["Software engineering", "Requirements", "Modeling"],
     targetPrograms: ["Software Engineering", "Computing and Software"],
     outreachStatus: "Official McMaster Engineering source",
@@ -543,7 +671,8 @@ export const localAdvisorCards: AdvisorCard[] = [
     department: "Computing and Software",
     priority: "B+",
     priorityScore: 76,
-    fitSummary: "Computing & Software professor; useful match for networked, distributed, and systems-oriented computing.",
+    fitSummary:
+      "Computing & Software professor; useful match for networked, distributed, and systems-oriented computing.",
     contactAngle: "Use a systems/networked computing angle rather than pure ML.",
     researchAreas: ["Networked systems", "Distributed computing", "Computer science"],
     targetPrograms: ["Computing and Software", "Computer Science"],
@@ -559,8 +688,10 @@ export const localAdvisorCards: AdvisorCard[] = [
     department: "Computing and Software",
     priority: "B+",
     priorityScore: 74,
-    fitSummary: "Computing & Software assistant professor; useful signal for applied computing and autonomous/robotic systems angles.",
-    contactAngle: "Connect AI/software systems interests to robotics, perception, or autonomous systems if relevant.",
+    fitSummary:
+      "Computing & Software assistant professor; useful signal for applied computing and autonomous/robotic systems angles.",
+    contactAngle:
+      "Connect AI/software systems interests to robotics, perception, or autonomous systems if relevant.",
     researchAreas: ["Applied computing", "Robotics", "Systems", "Computer science"],
     targetPrograms: ["Computing and Software", "Computer Science"],
     outreachStatus: "Official McMaster Engineering source",
@@ -575,9 +706,15 @@ export const localAdvisorCards: AdvisorCard[] = [
     department: "Electrical and Computer Engineering",
     priority: "B",
     priorityScore: 71,
-    fitSummary: "ECE assistant professor; useful bridge for computer engineering, embedded systems, and hardware/software systems.",
-    contactAngle: "Use a computer engineering systems implementation angle, not a pure CS theory angle.",
-    researchAreas: ["Computer engineering", "Embedded systems", "Hardware/software systems"],
+    fitSummary:
+      "ECE assistant professor; useful bridge for computer engineering, embedded systems, and hardware/software systems.",
+    contactAngle:
+      "Use a computer engineering systems implementation angle, not a pure CS theory angle.",
+    researchAreas: [
+      "Computer engineering",
+      "Embedded systems",
+      "Hardware/software systems"
+    ],
     targetPrograms: ["Electrical and Computer Engineering", "Computer Engineering"],
     outreachStatus: "Official McMaster Engineering source",
     profileUrl: "https://www.eng.mcmaster.ca/ece/faculty/dr-ameer-abdelhadi/",
@@ -591,9 +728,15 @@ export const localAdvisorCards: AdvisorCard[] = [
     department: "Electrical and Computer Engineering",
     priority: "B",
     priorityScore: 70,
-    fitSummary: "ECE professor; relevant for computer engineering, verification, and hardware/software reliability angles.",
-    contactAngle: "Frame around reliable computer systems or verification-oriented engineering.",
-    researchAreas: ["Computer engineering", "Verification", "Hardware/software reliability"],
+    fitSummary:
+      "ECE professor; relevant for computer engineering, verification, and hardware/software reliability angles.",
+    contactAngle:
+      "Frame around reliable computer systems or verification-oriented engineering.",
+    researchAreas: [
+      "Computer engineering",
+      "Verification",
+      "Hardware/software reliability"
+    ],
     targetPrograms: ["Electrical and Computer Engineering", "Computer Engineering"],
     outreachStatus: "Official McMaster Engineering source",
     profileUrl: "https://www.eng.mcmaster.ca/ece/faculty/dr-nicola-nicolici/",
@@ -607,12 +750,20 @@ export const localAdvisorCards: AdvisorCard[] = [
     department: "Thomas Lord Department of Computer Science",
     priority: "A+",
     priorityScore: 92,
-    fitSummary: "CS faculty with strong AI/optimization and decision-support fit; good match for interpretable recommendation and planning systems.",
-    contactAngle: "Frame around AI for decision support, optimization, or structured recommendation workflows.",
-    researchAreas: ["Artificial intelligence", "Optimization", "Decision support", "Computer science"],
+    fitSummary:
+      "CS faculty with strong AI/optimization and decision-support fit; good match for interpretable recommendation and planning systems.",
+    contactAngle:
+      "Frame around AI for decision support, optimization, or structured recommendation workflows.",
+    researchAreas: [
+      "Artificial intelligence",
+      "Optimization",
+      "Decision support",
+      "Computer science"
+    ],
     targetPrograms: ["Computer Science", "AI research", "Software and systems"],
     outreachStatus: "Official USC CS source",
-    profileUrl: "https://www.cs.usc.edu/directory/faculty/profile/?lname=Dilkina&fname=Bistra",
+    profileUrl:
+      "https://www.cs.usc.edu/directory/faculty/profile/?lname=Dilkina&fname=Bistra",
     sourceLabel: "USC CS faculty directory"
   },
   {
@@ -623,9 +774,15 @@ export const localAdvisorCards: AdvisorCard[] = [
     department: "Thomas Lord Department of Computer Science",
     priority: "A+",
     priorityScore: 91,
-    fitSummary: "CS faculty signal for language AI; strong fit for LLM-driven explanation, extraction, and advisor/school matching.",
+    fitSummary:
+      "CS faculty signal for language AI; strong fit for LLM-driven explanation, extraction, and advisor/school matching.",
     contactAngle: "Use an NLP/LLM information extraction and decision-support angle.",
-    researchAreas: ["Natural language processing", "Artificial intelligence", "LLMs", "Computer science"],
+    researchAreas: [
+      "Natural language processing",
+      "Artificial intelligence",
+      "LLMs",
+      "Computer science"
+    ],
     targetPrograms: ["Computer Science", "AI research", "NLP"],
     outreachStatus: "Official USC CS source",
     profileUrl: "https://www.cs.usc.edu/directory/faculty/profile/?lname=Ren&fname=Xiang",
@@ -639,12 +796,20 @@ export const localAdvisorCards: AdvisorCard[] = [
     department: "Thomas Lord Department of Computer Science",
     priority: "A",
     priorityScore: 88,
-    fitSummary: "CS professor and department chair; strong software architecture and systems-oriented fit.",
-    contactAngle: "Frame around software architecture, software behavior understanding, or engineering decision representations.",
-    researchAreas: ["Software engineering", "Software architecture", "Systems", "Computer science"],
+    fitSummary:
+      "CS professor and department chair; strong software architecture and systems-oriented fit.",
+    contactAngle:
+      "Frame around software architecture, software behavior understanding, or engineering decision representations.",
+    researchAreas: [
+      "Software engineering",
+      "Software architecture",
+      "Systems",
+      "Computer science"
+    ],
     targetPrograms: ["Computer Science", "Software engineering"],
     outreachStatus: "Official USC CS source",
-    profileUrl: "https://www.cs.usc.edu/directory/faculty/profile/?lname=Medvidovic&fname=Nenad",
+    profileUrl:
+      "https://www.cs.usc.edu/directory/faculty/profile/?lname=Medvidovic&fname=Nenad",
     sourceLabel: "USC CS faculty directory"
   },
   {
@@ -655,12 +820,20 @@ export const localAdvisorCards: AdvisorCard[] = [
     department: "Thomas Lord Department of Computer Science",
     priority: "A",
     priorityScore: 86,
-    fitSummary: "CS professor; strong fit for software engineering, testing, and software behavior analysis.",
-    contactAngle: "Connect runtime/software facts to developer-facing representations and testing decisions.",
-    researchAreas: ["Software engineering", "Testing", "Software behavior", "Computer science"],
+    fitSummary:
+      "CS professor; strong fit for software engineering, testing, and software behavior analysis.",
+    contactAngle:
+      "Connect runtime/software facts to developer-facing representations and testing decisions.",
+    researchAreas: [
+      "Software engineering",
+      "Testing",
+      "Software behavior",
+      "Computer science"
+    ],
     targetPrograms: ["Computer Science", "Software engineering"],
     outreachStatus: "Official USC CS source",
-    profileUrl: "https://www.cs.usc.edu/directory/faculty/profile/?lname=Halfond&fname=William",
+    profileUrl:
+      "https://www.cs.usc.edu/directory/faculty/profile/?lname=Halfond&fname=William",
     sourceLabel: "USC CS faculty directory"
   },
   {
@@ -671,12 +844,20 @@ export const localAdvisorCards: AdvisorCard[] = [
     department: "Computer Science / Electrical and Computer Engineering",
     priority: "A",
     priorityScore: 84,
-    fitSummary: "Joint CS/ECE faculty signal for data systems and spatial information; useful for map-based decision products.",
-    contactAngle: "Frame around spatial data, searchable decision facts, and map-based recommendation systems.",
-    researchAreas: ["Databases", "Spatial data", "Information systems", "Computer science"],
+    fitSummary:
+      "Joint CS/ECE faculty signal for data systems and spatial information; useful for map-based decision products.",
+    contactAngle:
+      "Frame around spatial data, searchable decision facts, and map-based recommendation systems.",
+    researchAreas: [
+      "Databases",
+      "Spatial data",
+      "Information systems",
+      "Computer science"
+    ],
     targetPrograms: ["Computer Science", "Data systems", "ECE"],
     outreachStatus: "Official USC CS/ECE source",
-    profileUrl: "https://www.cs.usc.edu/directory/faculty/profile/?lname=Shahabi&fname=Cyrus",
+    profileUrl:
+      "https://www.cs.usc.edu/directory/faculty/profile/?lname=Shahabi&fname=Cyrus",
     sourceLabel: "USC CS and ECE faculty directories"
   },
   {
@@ -688,11 +869,13 @@ export const localAdvisorCards: AdvisorCard[] = [
     priority: "A-",
     priorityScore: 82,
     fitSummary: "Joint CS/ECE professor; strong robotics and embodied AI signal.",
-    contactAngle: "Use robotics/AI systems angle if positioning toward autonomous decision-making.",
+    contactAngle:
+      "Use robotics/AI systems angle if positioning toward autonomous decision-making.",
     researchAreas: ["Robotics", "Artificial intelligence", "Systems", "Computer science"],
     targetPrograms: ["Computer Science", "Robotics", "ECE"],
     outreachStatus: "Official USC CS/ECE source",
-    profileUrl: "https://www.cs.usc.edu/directory/faculty/profile/?lname=Sukhatme&fname=Gaurav",
+    profileUrl:
+      "https://www.cs.usc.edu/directory/faculty/profile/?lname=Sukhatme&fname=Gaurav",
     sourceLabel: "USC CS and ECE faculty directories"
   },
   {
@@ -703,12 +886,15 @@ export const localAdvisorCards: AdvisorCard[] = [
     department: "Thomas Lord Department of Computer Science",
     priority: "A-",
     priorityScore: 81,
-    fitSummary: "CS faculty signal for human-centered robotics and AI; relevant for interactive recommendation workflows.",
-    contactAngle: "Frame around human-AI interaction, robotics, or adaptive decision-support systems.",
+    fitSummary:
+      "CS faculty signal for human-centered robotics and AI; relevant for interactive recommendation workflows.",
+    contactAngle:
+      "Frame around human-AI interaction, robotics, or adaptive decision-support systems.",
     researchAreas: ["Human-AI interaction", "Robotics", "Artificial intelligence"],
     targetPrograms: ["Computer Science", "AI research", "Robotics"],
     outreachStatus: "Official USC CS source",
-    profileUrl: "https://www.cs.usc.edu/directory/faculty/profile/?lname=Nikolaidis&fname=Stefanos",
+    profileUrl:
+      "https://www.cs.usc.edu/directory/faculty/profile/?lname=Nikolaidis&fname=Stefanos",
     sourceLabel: "USC CS faculty directory"
   },
   {
@@ -719,12 +905,19 @@ export const localAdvisorCards: AdvisorCard[] = [
     department: "Thomas Lord Department of Computer Science",
     priority: "A-",
     priorityScore: 80,
-    fitSummary: "CS and communication faculty; useful for AI/social computing and information integrity angles.",
-    contactAngle: "Connect AI-generated information, trust, and decision-support quality.",
-    researchAreas: ["Artificial intelligence", "Social computing", "Information integrity"],
+    fitSummary:
+      "CS and communication faculty; useful for AI/social computing and information integrity angles.",
+    contactAngle:
+      "Connect AI-generated information, trust, and decision-support quality.",
+    researchAreas: [
+      "Artificial intelligence",
+      "Social computing",
+      "Information integrity"
+    ],
     targetPrograms: ["Computer Science", "AI research", "Information systems"],
     outreachStatus: "Official USC CS source",
-    profileUrl: "https://www.cs.usc.edu/directory/faculty/profile/?lname=Ferrara&fname=Emilio",
+    profileUrl:
+      "https://www.cs.usc.edu/directory/faculty/profile/?lname=Ferrara&fname=Emilio",
     sourceLabel: "USC CS faculty directory"
   },
   {
@@ -735,12 +928,20 @@ export const localAdvisorCards: AdvisorCard[] = [
     department: "Electrical and Computer Engineering / Computer Science",
     priority: "B+",
     priorityScore: 78,
-    fitSummary: "Joint ECE/CS faculty signal for AI, signal processing, and adaptive systems.",
-    contactAngle: "Use AI systems/adaptive modeling angle if research interest leans toward signals or health applications.",
-    researchAreas: ["Artificial intelligence", "Signal processing", "Adaptive systems", "ECE"],
+    fitSummary:
+      "Joint ECE/CS faculty signal for AI, signal processing, and adaptive systems.",
+    contactAngle:
+      "Use AI systems/adaptive modeling angle if research interest leans toward signals or health applications.",
+    researchAreas: [
+      "Artificial intelligence",
+      "Signal processing",
+      "Adaptive systems",
+      "ECE"
+    ],
     targetPrograms: ["Electrical and Computer Engineering", "Computer Science"],
     outreachStatus: "Official USC CS/ECE source",
-    profileUrl: "https://minghsiehece.usc.edu/directory/faculty/profile/?lname=Shanechi&fname=Maryam",
+    profileUrl:
+      "https://minghsiehece.usc.edu/directory/faculty/profile/?lname=Shanechi&fname=Maryam",
     sourceLabel: "USC ECE and CS faculty directories"
   },
   {
@@ -751,12 +952,23 @@ export const localAdvisorCards: AdvisorCard[] = [
     department: "Electrical and Computer Engineering / Computer Science",
     priority: "B+",
     priorityScore: 76,
-    fitSummary: "Joint ECE/CS/ISE faculty signal; useful for machine learning, optimization, and AI foundations.",
+    fitSummary:
+      "Joint ECE/CS/ISE faculty signal; useful for machine learning, optimization, and AI foundations.",
     contactAngle: "Frame around ML foundations, optimization, or reliable AI systems.",
-    researchAreas: ["Machine learning", "Optimization", "Electrical and computer engineering", "Computer science"],
-    targetPrograms: ["Electrical and Computer Engineering", "Computer Science", "AI research"],
+    researchAreas: [
+      "Machine learning",
+      "Optimization",
+      "Electrical and computer engineering",
+      "Computer science"
+    ],
+    targetPrograms: [
+      "Electrical and Computer Engineering",
+      "Computer Science",
+      "AI research"
+    ],
     outreachStatus: "Official USC CS/ECE source",
-    profileUrl: "https://minghsiehece.usc.edu/directory/faculty/profile/?lname=Soltanolkotabi&fname=Mahdi",
+    profileUrl:
+      "https://minghsiehece.usc.edu/directory/faculty/profile/?lname=Soltanolkotabi&fname=Mahdi",
     sourceLabel: "USC ECE and CS faculty directories"
   },
   {
@@ -767,12 +979,20 @@ export const localAdvisorCards: AdvisorCard[] = [
     department: "Computer Science Department",
     priority: "A+",
     priorityScore: 93,
-    fitSummary: "CS assistant professor signal for machine learning and AI systems; strong fit for decision-support and recommendation workflows.",
-    contactAngle: "Frame around ML systems for interpretable decision support or personalized academic planning.",
-    researchAreas: ["Machine learning", "Artificial intelligence", "Decision support", "Computer science"],
+    fitSummary:
+      "CS assistant professor signal for machine learning and AI systems; strong fit for decision-support and recommendation workflows.",
+    contactAngle:
+      "Frame around ML systems for interpretable decision support or personalized academic planning.",
+    researchAreas: [
+      "Machine learning",
+      "Artificial intelligence",
+      "Decision support",
+      "Computer science"
+    ],
     targetPrograms: ["Computer Science", "AI research", "Software and systems"],
     outreachStatus: "Official UCLA CS source",
-    profileUrl: "https://catalog.registrar.ucla.edu/browse/Departments/ComputerScience/Faculty-Roster",
+    profileUrl:
+      "https://catalog.registrar.ucla.edu/browse/Departments/ComputerScience/Faculty-Roster",
     sourceLabel: "UCLA Computer Science faculty roster"
   },
   {
@@ -783,12 +1003,20 @@ export const localAdvisorCards: AdvisorCard[] = [
     department: "Computer Science Department",
     priority: "A+",
     priorityScore: 91,
-    fitSummary: "CS assistant professor signal for machine learning; useful for data-efficient and trustworthy AI recommendation problems.",
-    contactAngle: "Use a robust ML / useful abstraction angle for school or advisor matching.",
-    researchAreas: ["Machine learning", "Trustworthy AI", "Data-efficient AI", "Computer science"],
+    fitSummary:
+      "CS assistant professor signal for machine learning; useful for data-efficient and trustworthy AI recommendation problems.",
+    contactAngle:
+      "Use a robust ML / useful abstraction angle for school or advisor matching.",
+    researchAreas: [
+      "Machine learning",
+      "Trustworthy AI",
+      "Data-efficient AI",
+      "Computer science"
+    ],
     targetPrograms: ["Computer Science", "AI research"],
     outreachStatus: "Official UCLA CS source",
-    profileUrl: "https://catalog.registrar.ucla.edu/browse/Departments/ComputerScience/Faculty-Roster",
+    profileUrl:
+      "https://catalog.registrar.ucla.edu/browse/Departments/ComputerScience/Faculty-Roster",
     sourceLabel: "UCLA Computer Science faculty roster"
   },
   {
@@ -799,12 +1027,20 @@ export const localAdvisorCards: AdvisorCard[] = [
     department: "Computer Science Department",
     priority: "A+",
     priorityScore: 90,
-    fitSummary: "CS professor signal for AI reasoning and probabilistic representations; strong fit for explainable matching and decision logic.",
-    contactAngle: "Frame around interpretable AI representations for human decision-making.",
-    researchAreas: ["Artificial intelligence", "Probabilistic reasoning", "Knowledge representation", "Explainable AI"],
+    fitSummary:
+      "CS professor signal for AI reasoning and probabilistic representations; strong fit for explainable matching and decision logic.",
+    contactAngle:
+      "Frame around interpretable AI representations for human decision-making.",
+    researchAreas: [
+      "Artificial intelligence",
+      "Probabilistic reasoning",
+      "Knowledge representation",
+      "Explainable AI"
+    ],
     targetPrograms: ["Computer Science", "AI research"],
     outreachStatus: "Official UCLA CS source",
-    profileUrl: "https://catalog.registrar.ucla.edu/browse/Departments/ComputerScience/Faculty-Roster",
+    profileUrl:
+      "https://catalog.registrar.ucla.edu/browse/Departments/ComputerScience/Faculty-Roster",
     sourceLabel: "UCLA Computer Science faculty roster"
   },
   {
@@ -815,12 +1051,20 @@ export const localAdvisorCards: AdvisorCard[] = [
     department: "Computer Science Department",
     priority: "A",
     priorityScore: 88,
-    fitSummary: "CS professor signal for software engineering; strong overlap with transforming raw software facts into useful developer-facing representations.",
-    contactAngle: "Connect runtime/software behavior facts to actionable engineering abstractions.",
-    researchAreas: ["Software engineering", "Program analysis", "Developer tools", "Software behavior"],
+    fitSummary:
+      "CS professor signal for software engineering; strong overlap with transforming raw software facts into useful developer-facing representations.",
+    contactAngle:
+      "Connect runtime/software behavior facts to actionable engineering abstractions.",
+    researchAreas: [
+      "Software engineering",
+      "Program analysis",
+      "Developer tools",
+      "Software behavior"
+    ],
     targetPrograms: ["Computer Science", "Software engineering"],
     outreachStatus: "Official UCLA CS source",
-    profileUrl: "https://catalog.registrar.ucla.edu/browse/Departments/ComputerScience/Faculty-Roster",
+    profileUrl:
+      "https://catalog.registrar.ucla.edu/browse/Departments/ComputerScience/Faculty-Roster",
     sourceLabel: "UCLA Computer Science faculty roster"
   },
   {
@@ -831,12 +1075,20 @@ export const localAdvisorCards: AdvisorCard[] = [
     department: "Computer Science Department",
     priority: "A",
     priorityScore: 86,
-    fitSummary: "CS professor signal for programming languages and software systems; useful if positioning toward static/runtime program understanding.",
-    contactAngle: "Use a programming languages, program analysis, or reliable software systems angle.",
-    researchAreas: ["Programming languages", "Program analysis", "Software systems", "Computer science"],
+    fitSummary:
+      "CS professor signal for programming languages and software systems; useful if positioning toward static/runtime program understanding.",
+    contactAngle:
+      "Use a programming languages, program analysis, or reliable software systems angle.",
+    researchAreas: [
+      "Programming languages",
+      "Program analysis",
+      "Software systems",
+      "Computer science"
+    ],
     targetPrograms: ["Computer Science", "Software engineering"],
     outreachStatus: "Official UCLA CS source",
-    profileUrl: "https://catalog.registrar.ucla.edu/browse/Departments/ComputerScience/Faculty-Roster",
+    profileUrl:
+      "https://catalog.registrar.ucla.edu/browse/Departments/ComputerScience/Faculty-Roster",
     sourceLabel: "UCLA Computer Science faculty roster"
   },
   {
@@ -847,12 +1099,15 @@ export const localAdvisorCards: AdvisorCard[] = [
     department: "Computer Science Department",
     priority: "A",
     priorityScore: 85,
-    fitSummary: "CS professor signal for data mining and graph/ML methods; relevant to school/advisor recommendation and comparison graphs.",
-    contactAngle: "Frame around graph-based recommendation, information extraction, or data-driven decision support.",
+    fitSummary:
+      "CS professor signal for data mining and graph/ML methods; relevant to school/advisor recommendation and comparison graphs.",
+    contactAngle:
+      "Frame around graph-based recommendation, information extraction, or data-driven decision support.",
     researchAreas: ["Data mining", "Machine learning", "Graphs", "Recommendation"],
     targetPrograms: ["Computer Science", "AI research", "Data systems"],
     outreachStatus: "Official UCLA CS source",
-    profileUrl: "https://catalog.registrar.ucla.edu/browse/Departments/ComputerScience/Faculty-Roster",
+    profileUrl:
+      "https://catalog.registrar.ucla.edu/browse/Departments/ComputerScience/Faculty-Roster",
     sourceLabel: "UCLA Computer Science faculty roster"
   },
   {
@@ -863,9 +1118,15 @@ export const localAdvisorCards: AdvisorCard[] = [
     department: "Computer Science / Electrical and Computer Engineering",
     priority: "A-",
     priorityScore: 82,
-    fitSummary: "Joint CS/ECE associate professor signal for human-computer interaction; useful for interactive comparison and decision workflows.",
-    contactAngle: "Lead with human-centered AI tools that make complex application choices easier to inspect and act on.",
-    researchAreas: ["Human-computer interaction", "Human-AI interaction", "Interactive systems"],
+    fitSummary:
+      "Joint CS/ECE associate professor signal for human-computer interaction; useful for interactive comparison and decision workflows.",
+    contactAngle:
+      "Lead with human-centered AI tools that make complex application choices easier to inspect and act on.",
+    researchAreas: [
+      "Human-computer interaction",
+      "Human-AI interaction",
+      "Interactive systems"
+    ],
     targetPrograms: ["Computer Science", "Electrical and Computer Engineering", "HCI"],
     outreachStatus: "Official UCLA CS/ECE source",
     profileUrl: "https://www.ee.ucla.edu/albertl-faculty/",
@@ -879,10 +1140,21 @@ export const localAdvisorCards: AdvisorCard[] = [
     department: "Computer Science / Electrical and Computer Engineering",
     priority: "A-",
     priorityScore: 81,
-    fitSummary: "Joint CS/ECE professor signal for AI, vision, and systems; relevant for representation learning and decision-support infrastructure.",
-    contactAngle: "Use a representation-learning or AI systems angle, not a pure admissions-product pitch.",
-    researchAreas: ["Artificial intelligence", "Computer vision", "Representation learning", "Systems"],
-    targetPrograms: ["Computer Science", "Electrical and Computer Engineering", "AI research"],
+    fitSummary:
+      "Joint CS/ECE professor signal for AI, vision, and systems; relevant for representation learning and decision-support infrastructure.",
+    contactAngle:
+      "Use a representation-learning or AI systems angle, not a pure admissions-product pitch.",
+    researchAreas: [
+      "Artificial intelligence",
+      "Computer vision",
+      "Representation learning",
+      "Systems"
+    ],
+    targetPrograms: [
+      "Computer Science",
+      "Electrical and Computer Engineering",
+      "AI research"
+    ],
     outreachStatus: "Official UCLA CS/ECE source",
     profileUrl: "https://www.ee.ucla.edu/albertl-faculty/",
     sourceLabel: "UCLA CS roster and ECE faculty directory"
@@ -895,9 +1167,16 @@ export const localAdvisorCards: AdvisorCard[] = [
     department: "Electrical and Computer Engineering Department",
     priority: "B+",
     priorityScore: 78,
-    fitSummary: "ECE associate professor signal for machine learning, reinforcement learning, optimization, and control.",
-    contactAngle: "Frame around optimization and ML methods for adaptive decision support.",
-    researchAreas: ["Machine learning", "Reinforcement learning", "Optimization", "Control"],
+    fitSummary:
+      "ECE associate professor signal for machine learning, reinforcement learning, optimization, and control.",
+    contactAngle:
+      "Frame around optimization and ML methods for adaptive decision support.",
+    researchAreas: [
+      "Machine learning",
+      "Reinforcement learning",
+      "Optimization",
+      "Control"
+    ],
     targetPrograms: ["Electrical and Computer Engineering", "AI research"],
     outreachStatus: "Official UCLA ECE source",
     profileUrl: "https://www.ee.ucla.edu/albertl-faculty/",
@@ -911,9 +1190,16 @@ export const localAdvisorCards: AdvisorCard[] = [
     department: "Electrical and Computer Engineering Department",
     priority: "B+",
     priorityScore: 76,
-    fitSummary: "ECE assistant professor signal for computer engineering and secure/reliable systems; useful if research direction leans systems/security.",
-    contactAngle: "Use a secure systems, computer engineering, or reliable infrastructure angle.",
-    researchAreas: ["Computer engineering", "Systems security", "Reliable systems", "ECE"],
+    fitSummary:
+      "ECE assistant professor signal for computer engineering and secure/reliable systems; useful if research direction leans systems/security.",
+    contactAngle:
+      "Use a secure systems, computer engineering, or reliable infrastructure angle.",
+    researchAreas: [
+      "Computer engineering",
+      "Systems security",
+      "Reliable systems",
+      "ECE"
+    ],
     targetPrograms: ["Electrical and Computer Engineering", "Computer Engineering"],
     outreachStatus: "Official UCLA ECE source",
     profileUrl: "https://www.ee.ucla.edu/albertl-faculty/",

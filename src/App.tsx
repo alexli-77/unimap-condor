@@ -60,11 +60,7 @@ type FavoriteKind = "school" | "subject" | "advisor";
 type LeftPanel = "filters" | "saved" | "compare" | "view";
 type PointSize = "small" | "normal" | "large";
 type ApplicationStatus =
-  | "interested"
-  | "longlist"
-  | "shortlist"
-  | "applying"
-  | "rejected";
+  "interested" | "longlist" | "shortlist" | "applying" | "rejected";
 type StringPreferenceKey = {
   [K in keyof PreferenceProfile]: PreferenceProfile[K] extends string ? K : never;
 }[keyof PreferenceProfile];
@@ -211,7 +207,8 @@ const northAmericaCsTemplate: PreferenceProfile = {
   employmentPriority: "high",
   researchPriority: "medium",
   immigrationPriority: "high",
-  notes: "North America CS master's shortlist. Adjust the template to match your own profile."
+  notes:
+    "North America CS master's shortlist. Adjust the template to match your own profile."
 };
 
 const favoritesStorageKey = "unimap.favorites";
@@ -259,7 +256,9 @@ function normalizeSchoolDecisions(value: unknown): Record<number, SchoolDecision
       .map(([key, item]) => {
         const universityId = Number(item.universityId ?? key);
         if (!Number.isFinite(universityId)) return null;
-        const status = applicationStatuses.some((statusItem) => statusItem.id === item.status)
+        const status = applicationStatuses.some(
+          (statusItem) => statusItem.id === item.status
+        )
           ? (item.status as ApplicationStatus)
           : "interested";
         return [
@@ -288,13 +287,17 @@ function normalizePreferenceProfile(value: unknown): PreferenceProfile {
     ...profile,
     schemaVersion: 1,
     updatedAt: profile.updatedAt ?? new Date().toISOString(),
-    employmentPriority: ["low", "medium", "high"].includes(profile.employmentPriority ?? "")
+    employmentPriority: ["low", "medium", "high"].includes(
+      profile.employmentPriority ?? ""
+    )
       ? (profile.employmentPriority as PriorityLevel)
       : "medium",
     researchPriority: ["low", "medium", "high"].includes(profile.researchPriority ?? "")
       ? (profile.researchPriority as PriorityLevel)
       : "medium",
-    immigrationPriority: ["low", "medium", "high"].includes(profile.immigrationPriority ?? "")
+    immigrationPriority: ["low", "medium", "high"].includes(
+      profile.immigrationPriority ?? ""
+    )
       ? (profile.immigrationPriority as PriorityLevel)
       : "medium",
     acceptsSmallCities: Boolean(profile.acceptsSmallCities ?? true),
@@ -310,9 +313,9 @@ function parseWorkspaceBackup(raw: string): WorkspaceBackup {
     preferenceProfile?: unknown;
   };
   const favorites = Array.isArray(parsed.favorites)
-    ? parsed.favorites
+    ? (parsed.favorites
         .map((item) => normalizeFavoriteItem(item as Partial<FavoriteItem>))
-        .filter(Boolean) as FavoriteItem[]
+        .filter(Boolean) as FavoriteItem[])
     : [];
 
   return {
@@ -465,7 +468,9 @@ function formatPriority(value: PriorityLevel) {
 }
 
 function getPreferenceSignals(profile: PreferenceProfile) {
-  const location = [profile.targetCountries, profile.targetCities].filter(Boolean).join(" / ");
+  const location = [profile.targetCountries, profile.targetCities]
+    .filter(Boolean)
+    .join(" / ");
   const budget = profile.maxTuition
     ? `${profile.budgetCurrency} ${profile.maxTuition}`
     : profile.fundingRequirement === "required"
@@ -487,7 +492,9 @@ function formatSourceBadge(sourceName: string) {
   return sourceName;
 }
 
-function mapRecommendationLevelToFitLevel(level: RecommendationResult["level"]): FitLevel {
+function mapRecommendationLevelToFitLevel(
+  level: RecommendationResult["level"]
+): FitLevel {
   if (level === "strong") return "good";
   if (level === "possible") return "possible";
   return "weak";
@@ -762,13 +769,22 @@ function PreferenceDialog({
 
   return (
     <div className="dialog-backdrop" role="presentation">
-      <section className="preference-dialog" role="dialog" aria-modal="true" aria-label="Preference profile">
+      <section
+        className="preference-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Preference profile"
+      >
         <div className="dialog-head">
           <div>
             <h2>Preference profile</h2>
             <p>Keep the decision context that rankings alone cannot answer.</p>
           </div>
-          <button className="icon-button" aria-label="Close preference profile" onClick={onClose}>
+          <button
+            className="icon-button"
+            aria-label="Close preference profile"
+            onClick={onClose}
+          >
             <X size={17} />
           </button>
         </div>
@@ -835,7 +851,9 @@ function PreferenceDialog({
             <div className="select-wrap">
               <select
                 value={draft.fundingRequirement}
-                onChange={(event) => updateProfile("fundingRequirement", event.target.value)}
+                onChange={(event) =>
+                  updateProfile("fundingRequirement", event.target.value)
+                }
               >
                 <option value="flexible">Flexible</option>
                 <option value="preferred">Preferred</option>
@@ -918,7 +936,9 @@ function PreferenceDialog({
               <input
                 type="checkbox"
                 checked={draft.acceptsSmallCities}
-                onChange={(event) => updateToggle("acceptsSmallCities", event.target.checked)}
+                onChange={(event) =>
+                  updateToggle("acceptsSmallCities", event.target.checked)
+                }
               />
             </label>
             <label className="switch-row">
@@ -929,7 +949,9 @@ function PreferenceDialog({
               <input
                 type="checkbox"
                 checked={draft.acceptsCourseBased}
-                onChange={(event) => updateToggle("acceptsCourseBased", event.target.checked)}
+                onChange={(event) =>
+                  updateToggle("acceptsCourseBased", event.target.checked)
+                }
               />
             </label>
             <label className="switch-row">
@@ -940,7 +962,9 @@ function PreferenceDialog({
               <input
                 type="checkbox"
                 checked={draft.acceptsNichePrograms}
-                onChange={(event) => updateToggle("acceptsNichePrograms", event.target.checked)}
+                onChange={(event) =>
+                  updateToggle("acceptsNichePrograms", event.target.checked)
+                }
               />
             </label>
           </div>
@@ -957,7 +981,9 @@ function PreferenceDialog({
 
         <div className="dialog-actions">
           <span className="save-state">
-            {profile.updatedAt ? `Saved ${new Date(profile.updatedAt).toLocaleDateString()}` : "Not saved yet"}
+            {profile.updatedAt
+              ? `Saved ${new Date(profile.updatedAt).toLocaleDateString()}`
+              : "Not saved yet"}
           </span>
           <button className="ghost-button" type="button" onClick={onClose}>
             Cancel
@@ -984,7 +1010,10 @@ function PrioritySelect({
     <label>
       {label}
       <div className="select-wrap">
-        <select value={value} onChange={(event) => onChange(event.target.value as PriorityLevel)}>
+        <select
+          value={value}
+          onChange={(event) => onChange(event.target.value as PriorityLevel)}
+        >
           <option value="low">Low</option>
           <option value="medium">Medium</option>
           <option value="high">High</option>
@@ -1027,8 +1056,8 @@ export function App() {
       return [];
     }
   });
-  const [schoolDecisions, setSchoolDecisions] = useState<Record<number, SchoolDecision>>(() =>
-    loadSchoolDecisions()
+  const [schoolDecisions, setSchoolDecisions] = useState<Record<number, SchoolDecision>>(
+    () => loadSchoolDecisions()
   );
   const [showFavoritesLayer, setShowFavoritesLayer] = useState(false);
   const [showUniversityLabels, setShowUniversityLabels] = useState(false);
@@ -1139,27 +1168,31 @@ export function App() {
     );
   }, []);
 
-  const saveSchoolDecision = useCallback((feature: RankingFeature, patch: SchoolDecisionPatch) => {
-    const p = feature.properties;
-    const schoolFavorite = createFavoriteItem(feature, "school", p.universityName);
-    setFavorites((current) =>
-      current.some((favorite) => favorite.id === schoolFavorite.id)
-        ? current
-        : [...current, schoolFavorite]
-    );
-    setSchoolDecisions((current) => {
-      const previous = current[p.universityId] ?? getDefaultSchoolDecision(p.universityId);
-      return {
-        ...current,
-        [p.universityId]: {
-          ...previous,
-          ...patch,
-          universityId: p.universityId,
-          updatedAt: new Date().toISOString()
-        }
-      };
-    });
-  }, []);
+  const saveSchoolDecision = useCallback(
+    (feature: RankingFeature, patch: SchoolDecisionPatch) => {
+      const p = feature.properties;
+      const schoolFavorite = createFavoriteItem(feature, "school", p.universityName);
+      setFavorites((current) =>
+        current.some((favorite) => favorite.id === schoolFavorite.id)
+          ? current
+          : [...current, schoolFavorite]
+      );
+      setSchoolDecisions((current) => {
+        const previous =
+          current[p.universityId] ?? getDefaultSchoolDecision(p.universityId);
+        return {
+          ...current,
+          [p.universityId]: {
+            ...previous,
+            ...patch,
+            universityId: p.universityId,
+            updatedAt: new Date().toISOString()
+          }
+        };
+      });
+    },
+    []
+  );
 
   const isFavorite = useCallback(
     (kind: FavoriteKind, universityId: number, entityKey: string) =>
@@ -1456,7 +1489,10 @@ export function App() {
 
                     <label>
                       Source
-                      <select value={source} onChange={(event) => setSource(event.target.value)}>
+                      <select
+                        value={source}
+                        onChange={(event) => setSource(event.target.value)}
+                      >
                         {availabilities.map((item) => (
                           <option key={item.source.id} value={item.source.id}>
                             {item.source.name}
@@ -1467,7 +1503,10 @@ export function App() {
 
                     <label>
                       Year
-                      <select value={year} onChange={(event) => setYear(event.target.value)}>
+                      <select
+                        value={year}
+                        onChange={(event) => setYear(event.target.value)}
+                      >
                         {years.map((value) => (
                           <option key={value} value={value}>
                             {value}
@@ -1489,7 +1528,6 @@ export function App() {
                         ))}
                       </select>
                     </label>
-
                   </section>
 
                   {query.trim() && (
@@ -1501,8 +1539,16 @@ export function App() {
                   )}
 
                   <section className="metric-grid">
-                    <Metric icon={<Building2 size={18} />} label="Universities" value={stats.count} />
-                    <Metric icon={<Globe2 size={18} />} label="Countries" value={stats.countries} />
+                    <Metric
+                      icon={<Building2 size={18} />}
+                      label="Universities"
+                      value={stats.count}
+                    />
+                    <Metric
+                      icon={<Globe2 size={18} />}
+                      label="Countries"
+                      value={stats.countries}
+                    />
                     <Metric
                       icon={<Trophy size={18} />}
                       label="Best rank"
@@ -1557,7 +1603,9 @@ export function App() {
               {activeLeftPanel === "compare" && (
                 <ComparePanel
                   ids={compareIds}
-                  onRemove={(id) => setCompareIds((ids) => ids.filter((value) => value !== id))}
+                  onRemove={(id) =>
+                    setCompareIds((ids) => ids.filter((value) => value !== id))
+                  }
                 />
               )}
 
@@ -1750,8 +1798,10 @@ function RankingListPanel({
   const rows = useMemo(
     () =>
       [...features].sort((a, b) => {
-        const aRank = a.properties.rankValue ?? a.properties.topSubjectRankValue ?? Infinity;
-        const bRank = b.properties.rankValue ?? b.properties.topSubjectRankValue ?? Infinity;
+        const aRank =
+          a.properties.rankValue ?? a.properties.topSubjectRankValue ?? Infinity;
+        const bRank =
+          b.properties.rankValue ?? b.properties.topSubjectRankValue ?? Infinity;
         return aRank - bRank;
       }),
     [features]
@@ -1769,11 +1819,17 @@ function RankingListPanel({
         !shownIds.has(feature.properties.universityId)
     );
     const visible = [...top, ...pinnedExtras];
-    return { visibleRows: visible, hiddenCount: Math.max(0, rows.length - visible.length) };
+    return {
+      visibleRows: visible,
+      hiddenCount: Math.max(0, rows.length - visible.length)
+    };
   }, [rows, pinnedIds]);
 
   const sourceName = features[0]?.properties.sourceName;
-  const officialLink = getRankingSourceLink(sourceName, features[0]?.properties.sourceUrl);
+  const officialLink = getRankingSourceLink(
+    sourceName,
+    features[0]?.properties.sourceUrl
+  );
 
   return (
     <details className="ranking-list-panel">
@@ -1789,8 +1845,8 @@ function RankingListPanel({
           const p = feature.properties;
           const rank =
             mode === "rankings"
-              ? p.sourceRankValue ?? p.rankValue ?? "n/a"
-              : p.topSubjectSourceRankValue ?? p.topSubjectRankValue ?? "n/a";
+              ? (p.sourceRankValue ?? p.rankValue ?? "n/a")
+              : (p.topSubjectSourceRankValue ?? p.topSubjectRankValue ?? "n/a");
           return (
             <button
               key={`${p.universityId}-${p.subject ?? p.topSubject ?? "rank"}`}
@@ -1949,10 +2005,14 @@ function SavedPanel({
   const populatedStatuses = favoritesByStatus.filter((group) => group.items.length);
   const fallbackStatus = populatedStatuses[0]?.status.id;
   const selectedGroup =
-    populatedStatuses.find((group) => group.status.id === activeStatus) ?? populatedStatuses[0];
+    populatedStatuses.find((group) => group.status.id === activeStatus) ??
+    populatedStatuses[0];
 
   useEffect(() => {
-    if (fallbackStatus && !populatedStatuses.some((group) => group.status.id === activeStatus)) {
+    if (
+      fallbackStatus &&
+      !populatedStatuses.some((group) => group.status.id === activeStatus)
+    ) {
       setActiveStatus(fallbackStatus);
     }
   }, [activeStatus, fallbackStatus, populatedStatuses]);
@@ -1966,7 +2026,10 @@ function SavedPanel({
       <div className="workspace-backup-card">
         <div>
           <strong>Local workspace</strong>
-          <span>Saved only in this browser. Export a backup before switching address or device.</span>
+          <span>
+            Saved only in this browser. Export a backup before switching address or
+            device.
+          </span>
         </div>
         <div className="workspace-backup-actions">
           <button className="ghost-button" type="button" onClick={onExportWorkspace}>
@@ -2019,7 +2082,11 @@ function SavedPanel({
         <p className="muted">Star a university, subject, or advisor to show it here.</p>
       ) : (
         <>
-          <div className="saved-tabs" role="tablist" aria-label="Saved application status">
+          <div
+            className="saved-tabs"
+            role="tablist"
+            aria-label="Saved application status"
+          >
             {populatedStatuses.map((group) => (
               <button
                 key={group.status.id}
@@ -2051,7 +2118,9 @@ function SavedPanel({
                       <em>
                         {favorite.kind} · {favorite.universityName}
                       </em>
-                      {decision?.nextAction ? <small>Next: {decision.nextAction}</small> : null}
+                      {decision?.nextAction ? (
+                        <small>Next: {decision.nextAction}</small>
+                      ) : null}
                     </span>
                   </button>
                 );
@@ -2160,7 +2229,15 @@ function RankingMap({
 
     function clusterRadiusExpression() {
       const scale = getPointSizeScale(pointSizeRef.current);
-      return ["step", ["get", "point_count"], 18 * scale, 50, 24 * scale, 150, 32 * scale] as maplibregl.ExpressionSpecification;
+      return [
+        "step",
+        ["get", "point_count"],
+        18 * scale,
+        50,
+        24 * scale,
+        150,
+        32 * scale
+      ] as maplibregl.ExpressionSpecification;
     }
 
     function ensureRankingLayers() {
@@ -2290,19 +2367,25 @@ function RankingMap({
 
     map.on("click", "points", (event) => {
       const id = Number(event.features?.[0]?.properties?.universityId);
-      const feature = featureRef.current.find((item) => item.properties.universityId === id);
+      const feature = featureRef.current.find(
+        (item) => item.properties.universityId === id
+      );
       if (feature) onSelect(feature);
     });
 
     map.on("click", "favorite-stars", (event) => {
       const id = Number(event.features?.[0]?.properties?.universityId);
-      const feature = featureRef.current.find((item) => item.properties.universityId === id);
+      const feature = featureRef.current.find(
+        (item) => item.properties.universityId === id
+      );
       if (feature) onSelect(feature);
     });
 
     map.on("click", "university-labels", (event) => {
       const id = Number(event.features?.[0]?.properties?.universityId);
-      const feature = featureRef.current.find((item) => item.properties.universityId === id);
+      const feature = featureRef.current.find(
+        (item) => item.properties.universityId === id
+      );
       if (feature) onSelect(feature);
     });
 
@@ -2344,7 +2427,8 @@ function RankingMap({
 
   useEffect(() => {
     const map = mapRef.current;
-    const styleUrl = mapStyles.find((style) => style.id === mapStyle)?.url ?? mapStyles[0].url;
+    const styleUrl =
+      mapStyles.find((style) => style.id === mapStyle)?.url ?? mapStyles[0].url;
     if (!map || mapStyleRef.current === mapStyle) return;
     mapStyleRef.current = mapStyle;
     map.setStyle(styleUrl, { diff: false });
@@ -2551,7 +2635,12 @@ function UniversityCard({
           <ArrowLeftRight size={16} />
           Add to compare
         </button>
-        <a className="ghost-button" href={getGoogleMapsUrl(feature)} target="_blank" rel="noreferrer">
+        <a
+          className="ghost-button"
+          href={getGoogleMapsUrl(feature)}
+          target="_blank"
+          rel="noreferrer"
+        >
           Maps
           <ExternalLink size={16} />
         </a>
@@ -2708,12 +2797,21 @@ function OverviewPanel({
       ) : null}
 
       <div className="link-grid">
-        {openProfile?.homepageUrl && <ExternalChip href={openProfile.homepageUrl} label="Official site" />}
-        {openProfile?.wikipediaUrl && <ExternalChip href={openProfile.wikipediaUrl} label="Wikipedia" />}
-        {openProfile?.wikidataId && (
-          <ExternalChip href={`https://www.wikidata.org/wiki/${openProfile.wikidataId}`} label="Wikidata" />
+        {openProfile?.homepageUrl && (
+          <ExternalChip href={openProfile.homepageUrl} label="Official site" />
         )}
-        {openProfile?.rorId && <ExternalChip href={openProfile.rorId} label="ROR profile" />}
+        {openProfile?.wikipediaUrl && (
+          <ExternalChip href={openProfile.wikipediaUrl} label="Wikipedia" />
+        )}
+        {openProfile?.wikidataId && (
+          <ExternalChip
+            href={`https://www.wikidata.org/wiki/${openProfile.wikidataId}`}
+            label="Wikidata"
+          />
+        )}
+        {openProfile?.rorId && (
+          <ExternalChip href={openProfile.rorId} label="ROR profile" />
+        )}
       </div>
     </div>
   );
@@ -2747,7 +2845,10 @@ function FitSignalPanel({
             <ChevronDown className="fit-chevron" size={16} />
           </div>
         </summary>
-        <p className="muted">Open Prefs first. Fit signals need your location, subject, budget, and priorities.</p>
+        <p className="muted">
+          Open Prefs first. Fit signals need your location, subject, budget, and
+          priorities.
+        </p>
       </details>
     );
   }
@@ -2836,14 +2937,19 @@ function PreferenceSignalPanel({ profile }: { profile: PreferenceProfile }) {
           <div className="priority-grid">
             <Fact label="Employment" value={formatPriority(profile.employmentPriority)} />
             <Fact label="Research" value={formatPriority(profile.researchPriority)} />
-            <Fact label="Immigration" value={formatPriority(profile.immigrationPriority)} />
+            <Fact
+              label="Immigration"
+              value={formatPriority(profile.immigrationPriority)}
+            />
           </div>
           {flexibility.length ? (
             <p className="muted">Open to {flexibility.join(", ")}.</p>
           ) : null}
         </>
       ) : (
-        <p className="muted">Open Prefs to add your location, budget, background, and priorities.</p>
+        <p className="muted">
+          Open Prefs to add your location, budget, background, and priorities.
+        </p>
       )}
     </div>
   );
@@ -2891,11 +2997,15 @@ function buildDecisionGaps(
   const programs = facts?.programs ?? [];
   const funding = facts?.funding ?? [];
   const factText = [...programs, ...funding]
-    .map((fact) => `${fact.title} ${fact.rawLabel} ${getDecisionFactTags(fact).join(" ")}`)
+    .map(
+      (fact) => `${fact.title} ${fact.rawLabel} ${getDecisionFactTags(fact).join(" ")}`
+    )
     .join(" ");
 
-  if (!programs.length) gaps.push("Program options are not verified for this school yet.");
-  if (!funding.length) gaps.push("Funding or tuition facts are not verified for this school yet.");
+  if (!programs.length)
+    gaps.push("Program options are not verified for this school yet.");
+  if (!funding.length)
+    gaps.push("Funding or tuition facts are not verified for this school yet.");
   if (!/deadline|before|december|february|august|september|fall|winter/i.test(factText)) {
     gaps.push("Application deadline needs a direct source check.");
   }
@@ -2909,11 +3019,12 @@ function buildDecisionGaps(
   if (preferenceProfile.degreeLevel && programs.length) {
     const desiredDegree = normalizeSignal(preferenceProfile.degreeLevel);
     const hasDegree = programs.some((program) =>
-      normalizeSignal([program.degreeLevel, program.title, program.rawLabel].join(" ")).includes(
-        desiredDegree
-      )
+      normalizeSignal(
+        [program.degreeLevel, program.title, program.rawLabel].join(" ")
+      ).includes(desiredDegree)
     );
-    if (!hasDegree) gaps.push(`No verified ${preferenceProfile.degreeLevel} program match yet.`);
+    if (!hasDegree)
+      gaps.push(`No verified ${preferenceProfile.degreeLevel} program match yet.`);
   }
   if (!decision.keepReason.trim() && decision.status !== "rejected") {
     gaps.push("Add one keep reason before moving this into Shortlist.");
@@ -2936,14 +3047,23 @@ function buildDecisionInterpretation(
   const funding = facts?.funding ?? [];
   const allFacts = [...programs, ...funding];
   const factText = allFacts
-    .map((fact) => `${fact.title} ${fact.rawLabel} ${getDecisionFactTags(fact).join(" ")}`)
+    .map(
+      (fact) => `${fact.title} ${fact.rawLabel} ${getDecisionFactTags(fact).join(" ")}`
+    )
     .join(" ");
-  const policyResult = defaultRecommendationPolicy.scoreSchool(feature, preferenceProfile, {
-    decisionFacts: facts
-  });
+  const policyResult = defaultRecommendationPolicy.scoreSchool(
+    feature,
+    preferenceProfile,
+    {
+      decisionFacts: facts
+    }
+  );
   const matched: string[] = [...policyResult.matched];
   const concerns: string[] = [...policyResult.concerns];
-  const missing = [...buildDecisionGaps(facts, preferenceProfile, decision), ...policyResult.missing];
+  const missing = [
+    ...buildDecisionGaps(facts, preferenceProfile, decision),
+    ...policyResult.missing
+  ];
 
   const targetCountries = splitPreferenceTerms(preferenceProfile.targetCountries);
   if (targetCountries.length) {
@@ -2966,9 +3086,9 @@ function buildDecisionInterpretation(
   if (preferenceProfile.degreeLevel && programs.length) {
     const desiredDegree = normalizeSignal(preferenceProfile.degreeLevel);
     const degreeMatches = programs.filter((program) =>
-      normalizeSignal([program.degreeLevel, program.title, program.rawLabel].join(" ")).includes(
-        desiredDegree
-      )
+      normalizeSignal(
+        [program.degreeLevel, program.title, program.rawLabel].join(" ")
+      ).includes(desiredDegree)
     );
     if (degreeMatches.length) {
       matched.push(
@@ -2995,7 +3115,9 @@ function buildDecisionInterpretation(
     if (matchedTerms.length) {
       matched.push(`Subject signal found: ${matchedTerms.slice(0, 3).join(", ")}.`);
     } else {
-      missing.push("Subject or research keywords need validation in faculty/research data.");
+      missing.push(
+        "Subject or research keywords need validation in faculty/research data."
+      );
     }
   }
 
@@ -3011,17 +3133,26 @@ function buildDecisionInterpretation(
 
   if (preferenceProfile.maxTuition.trim()) {
     if (/\$|tuition|fee/i.test(factText)) {
-      missing.push(`Compare listed tuition/funding amounts against ${preferenceProfile.budgetCurrency} ${preferenceProfile.maxTuition}.`);
+      missing.push(
+        `Compare listed tuition/funding amounts against ${preferenceProfile.budgetCurrency} ${preferenceProfile.maxTuition}.`
+      );
     } else {
       missing.push("Tuition amount is needed before budget comparison.");
     }
   }
 
-  if (preferenceProfile.researchPriority === "high" && !programs.some((program) => /research|thesis|phd/i.test(program.rawLabel))) {
-    missing.push("Research-track strength needs supervisor or thesis-track confirmation.");
+  if (
+    preferenceProfile.researchPriority === "high" &&
+    !programs.some((program) => /research|thesis|phd/i.test(program.rawLabel))
+  ) {
+    missing.push(
+      "Research-track strength needs supervisor or thesis-track confirmation."
+    );
   }
   if (preferenceProfile.employmentPriority === "high") {
-    missing.push("Employment outcomes or co-op/city job-market notes are not connected yet.");
+    missing.push(
+      "Employment outcomes or co-op/city job-market notes are not connected yet."
+    );
   }
   if (preferenceProfile.immigrationPriority === "high") {
     missing.push("Immigration pathway notes are not connected yet.");
@@ -3108,12 +3239,22 @@ function DecisionPanel({
       <div className="decision-interpretation-card">
         <div className="decision-interpretation-head">
           <strong>Preference interpretation</strong>
-          <span>{hasPreferenceProfile(preferenceProfile) ? "Profile-aware" : "Needs profile"}</span>
+          <span>
+            {hasPreferenceProfile(preferenceProfile) ? "Profile-aware" : "Needs profile"}
+          </span>
         </div>
         <p>{interpretation.summary}</p>
         <div className="decision-signal-columns">
-          <DecisionSignalList title="Why it may fit" items={interpretation.matched} empty="No preference match yet." />
-          <DecisionSignalList title="Concerns" items={interpretation.concerns} empty="No concern from connected facts." />
+          <DecisionSignalList
+            title="Why it may fit"
+            items={interpretation.matched}
+            empty="No preference match yet."
+          />
+          <DecisionSignalList
+            title="Concerns"
+            items={interpretation.concerns}
+            empty="No concern from connected facts."
+          />
         </div>
       </div>
 
@@ -3129,9 +3270,7 @@ function DecisionPanel({
         </div>
       ) : null}
 
-      {programs.length ? (
-        <DecisionFactSection title="Programs" facts={programs} />
-      ) : null}
+      {programs.length ? <DecisionFactSection title="Programs" facts={programs} /> : null}
 
       {funding.length ? (
         <DecisionFactSection title="Funding & tuition" facts={funding} />
@@ -3246,8 +3385,8 @@ function RankingsPanel({ feature, mode }: { feature: RankingFeature; mode: Mode 
           <span>{mode === "rankings" ? "Rank" : "Top subject rank"}</span>
           <strong>
             {mode === "rankings"
-              ? p.sourceRankValue ?? p.rankValue ?? "n/a"
-              : p.topSubjectSourceRankValue ?? p.topSubjectRankValue ?? "n/a"}
+              ? (p.sourceRankValue ?? p.rankValue ?? "n/a")
+              : (p.topSubjectSourceRankValue ?? p.topSubjectRankValue ?? "n/a")}
           </strong>
         </div>
         <div>
@@ -3266,14 +3405,19 @@ function RankingsPanel({ feature, mode }: { feature: RankingFeature; mode: Mode 
                 <div className="bar-track">
                   <div
                     className="bar-fill"
-                    style={{ width: `${Math.round(score * 100)}%`, background: palette[index] }}
+                    style={{
+                      width: `${Math.round(score * 100)}%`,
+                      background: palette[index]
+                    }}
                   />
                 </div>
               </div>
             ))}
         </div>
       ) : (
-        <p className="muted">Switch to Subject Strength to compare normalized subject signals.</p>
+        <p className="muted">
+          Switch to Subject Strength to compare normalized subject signals.
+        </p>
       )}
       <div className="ranking-list-compliance">
         {officialLink ? (
@@ -3338,7 +3482,11 @@ function ResearchPanel({ feature }: { feature: RankingFeature }) {
           {profile.topics.map((topic, index) => (
             <div key={topic.name}>
               <span>{topic.name}</span>
-              <strong>{topic.count ? formatCompact(topic.count) : `${Math.round((topic.share ?? 0) * 100)}%`}</strong>
+              <strong>
+                {topic.count
+                  ? formatCompact(topic.count)
+                  : `${Math.round((topic.share ?? 0) * 100)}%`}
+              </strong>
               <div className="bar-track">
                 <div
                   className="bar-fill"
@@ -3537,7 +3685,9 @@ function FacultyDirectoryList({
 }) {
   const p = feature.properties;
   return (
-    <div className={compact ? "faculty-directory compact-directory" : "faculty-directory"}>
+    <div
+      className={compact ? "faculty-directory compact-directory" : "faculty-directory"}
+    >
       {!compact && (
         <div className="faculty-directory-head">
           <div>
@@ -3549,7 +3699,12 @@ function FacultyDirectoryList({
       )}
       <div className="faculty-person-list">
         {entries.map((entry) => {
-          const facultyFavorite = createFavoriteItem(feature, "advisor", entry.fullName, entry.id);
+          const facultyFavorite = createFavoriteItem(
+            feature,
+            "advisor",
+            entry.fullName,
+            entry.id
+          );
           return (
             <details key={entry.id} className="faculty-person">
               <summary>
@@ -3575,7 +3730,9 @@ function FacultyDirectoryList({
                 )}
                 <div className="faculty-person-actions">
                   {entry.email && <a href={`mailto:${entry.email}`}>{entry.email}</a>}
-                  {entry.profileUrl && <ExternalChip href={entry.profileUrl} label="Profile" />}
+                  {entry.profileUrl && (
+                    <ExternalChip href={entry.profileUrl} label="Profile" />
+                  )}
                 </div>
               </div>
             </details>
@@ -3583,7 +3740,12 @@ function FacultyDirectoryList({
         })}
       </div>
       {hasMore && (
-        <button className="load-more-button" type="button" onClick={onLoadMore} disabled={loading}>
+        <button
+          className="load-more-button"
+          type="button"
+          onClick={onLoadMore}
+          disabled={loading}
+        >
           {loading ? "Loading..." : `Load more (${entries.length}/${total})`}
         </button>
       )}
@@ -3641,9 +3803,13 @@ function buildDepartmentRecommendations(
         (sum, [, texts]) => sum + texts.length,
         0
       );
-      const fit = defaultRecommendationPolicy.scoreDepartment(department, preferenceProfile, {
-        advisors
-      });
+      const fit = defaultRecommendationPolicy.scoreDepartment(
+        department,
+        preferenceProfile,
+        {
+          advisors
+        }
+      );
 
       return {
         id: `${department.facultyName}:${department.name}`,
@@ -3670,7 +3836,11 @@ function buildAdvisorRecommendations(
     .sort((a, b) => {
       const priorityA = a.advisor.priorityScore ?? 0;
       const priorityB = b.advisor.priorityScore ?? 0;
-      return b.fit.score - a.fit.score || priorityB - priorityA || a.advisor.fullName.localeCompare(b.advisor.fullName);
+      return (
+        b.fit.score - a.fit.score ||
+        priorityB - priorityA ||
+        a.advisor.fullName.localeCompare(b.advisor.fullName)
+      );
     });
 }
 
@@ -3726,7 +3896,12 @@ function RecommendationsPanel({
   }, [p.universityName]);
 
   const departmentRecommendations = useMemo(
-    () => buildDepartmentRecommendations(summary?.departments ?? [], advisors, preferenceProfile),
+    () =>
+      buildDepartmentRecommendations(
+        summary?.departments ?? [],
+        advisors,
+        preferenceProfile
+      ),
     [advisors, preferenceProfile, summary]
   );
   const advisorRecommendations = useMemo(
@@ -3757,12 +3932,17 @@ function RecommendationsPanel({
         ) : (
           <div className="advisor-empty">
             <UserRoundSearch size={20} />
-            <p>No department recommendation yet. Add subject or research keywords in Prefs.</p>
+            <p>
+              No department recommendation yet. Add subject or research keywords in Prefs.
+            </p>
           </div>
         )}
       </RecommendationSection>
 
-      <RecommendationSection title="Recommended advisors" count={advisorRecommendations.length}>
+      <RecommendationSection
+        title="Recommended advisors"
+        count={advisorRecommendations.length}
+      >
         {!loading && advisors.length === 0 ? (
           <div className="advisor-empty">
             <UserRoundSearch size={20} />
@@ -3830,7 +4010,9 @@ function RecommendedDepartmentCard({
           <strong>{department.name}</strong>
           <span>{department.facultyName}</span>
         </div>
-        <em className={`recommendation-badge recommendation-${fit.level}`}>{fit.label}</em>
+        <em className={`recommendation-badge recommendation-${fit.level}`}>
+          {fit.label}
+        </em>
         <FavoriteButton
           active={isFavorite("subject", p.universityId, favoriteKey)}
           label="部门"
@@ -3847,9 +4029,21 @@ function RecommendedDepartmentCard({
           <Fact label="Advisors" value={recommendation.advisorCount} />
         </div>
         <p className="recommendation-summary">{fit.summary}</p>
-        <RecommendationEvidence title="Why it fits" items={fit.matched} empty="No direct fit signal yet." />
-        <RecommendationEvidence title="Concerns" items={fit.concerns} empty="No major concern from connected data." />
-        <RecommendationEvidence title="Missing info" items={fit.missing} empty="No blocking missing info." />
+        <RecommendationEvidence
+          title="Why it fits"
+          items={fit.matched}
+          empty="No direct fit signal yet."
+        />
+        <RecommendationEvidence
+          title="Concerns"
+          items={fit.concerns}
+          empty="No major concern from connected data."
+        />
+        <RecommendationEvidence
+          title="Missing info"
+          items={fit.missing}
+          empty="No blocking missing info."
+        />
         <div className="recommendation-next">
           <strong>Next</strong>
           <span>{fit.nextAction}</span>
@@ -3905,7 +4099,12 @@ function AdvisorItem({
   onToggleFavorite: (item: FavoriteItem) => void;
 }) {
   const p = feature.properties;
-  const advisorFavorite = createFavoriteItem(feature, "advisor", advisor.fullName, advisor.id);
+  const advisorFavorite = createFavoriteItem(
+    feature,
+    "advisor",
+    advisor.fullName,
+    advisor.id
+  );
   return (
     <details className="advisor-card">
       <summary className="advisor-card-header">
@@ -3916,14 +4115,28 @@ function AdvisorItem({
               advisor.institutionName}
           </span>
         </div>
-        <em className={`recommendation-badge recommendation-${fit.level}`}>{fit.label}</em>
+        <em className={`recommendation-badge recommendation-${fit.level}`}>
+          {fit.label}
+        </em>
       </summary>
 
       <div className="collapsible-body">
         <p>{fit.summary}</p>
-        <RecommendationEvidence title="Why it fits" items={fit.matched} empty={advisor.fitSummary} />
-        <RecommendationEvidence title="Concerns" items={fit.concerns} empty="No major concern from connected data." />
-        <RecommendationEvidence title="Missing info" items={fit.missing} empty="No blocking missing info." />
+        <RecommendationEvidence
+          title="Why it fits"
+          items={fit.matched}
+          empty={advisor.fitSummary}
+        />
+        <RecommendationEvidence
+          title="Concerns"
+          items={fit.concerns}
+          empty="No major concern from connected data."
+        />
+        <RecommendationEvidence
+          title="Missing info"
+          items={fit.missing}
+          empty="No blocking missing info."
+        />
         <div className="recommendation-next">
           <strong>Next</strong>
           <span>{fit.nextAction}</span>
@@ -3956,7 +4169,9 @@ function AdvisorItem({
           {advisor.outreachStatus && <span>{advisor.outreachStatus}</span>}
           {advisor.recruitingSignal && <span>{advisor.recruitingSignal}</span>}
           {advisor.politicalSensitivity && (
-            <span className="advisor-warning">Sensitivity: {advisor.politicalSensitivity}</span>
+            <span className="advisor-warning">
+              Sensitivity: {advisor.politicalSensitivity}
+            </span>
           )}
         </div>
 
@@ -3999,8 +4214,8 @@ function CommunityPanel({ feature }: { feature: RankingFeature }) {
         <div>
           <strong>寄托天下 / GTER search</strong>
           <p>
-            Opens real search pages for Chinese-language application experiences,
-            offers, interviews, school selection, and visa discussions.
+            Opens real search pages for Chinese-language application experiences, offers,
+            interviews, school selection, and visa discussions.
           </p>
         </div>
         <div className="community-actions">
@@ -4009,9 +4224,11 @@ function CommunityPanel({ feature }: { feature: RankingFeature }) {
         </div>
       </div>
       <div className="signal-list">
-        {["Admissions", "Offer decisions", "Funding", "Career outcomes", "Housing"].map((label) => (
-          <span key={label}>{label}</span>
-        ))}
+        {["Admissions", "Offer decisions", "Funding", "Career outcomes", "Housing"].map(
+          (label) => (
+            <span key={label}>{label}</span>
+          )
+        )}
       </div>
       <p className="muted">
         These are real outbound search links, not pre-fetched post results. The product

@@ -353,7 +353,11 @@ async function getSchoolDecisionFacts(
   }
 
   const { localDecisionFacts } = await import("./localDecisionFacts");
-  const facts = buildDecisionFacts(universityName, localDecisionFacts, "Local verified facts");
+  const facts = buildDecisionFacts(
+    universityName,
+    localDecisionFacts,
+    "Local verified facts"
+  );
   if (!signal) decisionFactsCache.set(cacheKey, facts);
   return facts;
 }
@@ -382,7 +386,10 @@ async function getFacultyDirectorySummary(
       if (departments.length) {
         const summary: FacultyDirectorySummary = {
           universityName,
-          totalEntries: departments.reduce((sum, department) => sum + department.count, 0),
+          totalEntries: departments.reduce(
+            (sum, department) => sum + department.count,
+            0
+          ),
           sourceUrl: data?.[0]?.source_url ?? undefined,
           sourceLabel: "Verified faculty index",
           departments
@@ -454,8 +461,9 @@ async function getFacultyDirectoryPage(
     }
   }
 
-  const entries = (await getFacultyDirectoryEntries(universityName))
-    .filter((entry) => !departmentName || entry.departmentName === departmentName);
+  const entries = (await getFacultyDirectoryEntries(universityName)).filter(
+    (entry) => !departmentName || entry.departmentName === departmentName
+  );
   const page = sliceFacultyPage(entries, offset, limit);
   if (!signal) facultyPageCache.set(cacheKey, page);
   return page;

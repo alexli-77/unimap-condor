@@ -82,9 +82,7 @@ export function splitPreferenceTerms(value: string) {
         .map((item) => normalizeSignal(item))
         .filter(Boolean)
         .flatMap((term) => {
-          const tokenAliases = term
-            .split(" ")
-            .flatMap((token) => aliases[token] ?? []);
+          const tokenAliases = term.split(" ").flatMap((token) => aliases[token] ?? []);
           return [term, ...(aliases[term] ?? []), ...tokenAliases];
         })
     )
@@ -96,8 +94,7 @@ export function textMatchesTerm(text: string, term: string) {
   const normalizedTerm = normalizeSignal(term);
   if (!normalizedText || !normalizedTerm) return false;
   return (
-    normalizedText.includes(normalizedTerm) ||
-    normalizedTerm.includes(normalizedText)
+    normalizedText.includes(normalizedTerm) || normalizedTerm.includes(normalizedText)
   );
 }
 
@@ -113,11 +110,7 @@ function uniq(items: string[]) {
 
 function getPreferenceSubjectTerms(preference: PreferenceProfile) {
   return splitPreferenceTerms(
-    [
-      preference.subjectAreas,
-      preference.researchKeywords,
-      preference.degreeLevel
-    ]
+    [preference.subjectAreas, preference.researchKeywords, preference.degreeLevel]
       .filter(Boolean)
       .join(",")
   ).filter((term) => term.length > 2);
@@ -142,9 +135,10 @@ function weightedMatchScore(
   areaCandidates?: string[]
 ) {
   const keywordMatches = findMatchingTerms(keywordTerms, keywordCandidates);
-  const areaOnlyMatches = findMatchingTerms(areaTerms, areaCandidates ?? keywordCandidates).filter(
-    (t) => !keywordMatches.includes(t)
-  );
+  const areaOnlyMatches = findMatchingTerms(
+    areaTerms,
+    areaCandidates ?? keywordCandidates
+  ).filter((t) => !keywordMatches.includes(t));
   // keyword match (explicit research intent) outweighs broad area match
   return {
     score: Math.min(35, keywordMatches.length * 20 + areaOnlyMatches.length * 5),
@@ -198,7 +192,10 @@ function scoreSchool(
   const programs = context?.decisionFacts?.programs ?? [];
   const funding = context?.decisionFacts?.funding ?? [];
   const factText = [...programs, ...funding]
-    .map((fact) => `${fact.title} ${fact.rawLabel} ${fact.degreeLevel ?? ""} ${fact.topic ?? ""} ${fact.department ?? ""} ${fact.amounts.join(" ")}`)
+    .map(
+      (fact) =>
+        `${fact.title} ${fact.rawLabel} ${fact.degreeLevel ?? ""} ${fact.topic ?? ""} ${fact.department ?? ""} ${fact.amounts.join(" ")}`
+    )
     .join(" ");
   const subjectTerms = getPreferenceSubjectTerms(preference);
   const subjectCandidates = [
@@ -232,7 +229,9 @@ function scoreSchool(
       draft.score -= 5;
       draft.concerns.push(`City is ${p.city}, not one of the target cities.`);
     } else {
-      draft.missing.push(`Check whether ${p.city} fits your city-size and lifestyle preferences.`);
+      draft.missing.push(
+        `Check whether ${p.city} fits your city-size and lifestyle preferences.`
+      );
     }
   } else {
     draft.missing.push("Target city is not set.");
@@ -245,7 +244,9 @@ function scoreSchool(
       draft.matched.push(`Subject/research match: ${matches.slice(0, 3).join(", ")}.`);
     } else {
       draft.score -= 10;
-      draft.concerns.push("No clear subject or research keyword match in connected school data.");
+      draft.concerns.push(
+        "No clear subject or research keyword match in connected school data."
+      );
       draft.missing.push("Check department and advisor-level research evidence.");
     }
   } else {
@@ -255,7 +256,9 @@ function scoreSchool(
   if (preference.degreeLevel) {
     const desiredDegree = normalizeSignal(preference.degreeLevel);
     const degreeMatches = programs.filter((program) =>
-      normalizeSignal([program.degreeLevel, program.title, program.rawLabel].join(" ")).includes(desiredDegree)
+      normalizeSignal(
+        [program.degreeLevel, program.title, program.rawLabel].join(" ")
+      ).includes(desiredDegree)
     );
     if (degreeMatches.length) {
       draft.score += 12;
@@ -264,12 +267,16 @@ function scoreSchool(
       draft.score -= 8;
       draft.concerns.push(`No verified ${preference.degreeLevel} program match yet.`);
     } else {
-      draft.missing.push(`Program data is needed to verify ${preference.degreeLevel} fit.`);
+      draft.missing.push(
+        `Program data is needed to verify ${preference.degreeLevel} fit.`
+      );
     }
   }
 
   if (preference.fundingRequirement === "required") {
-    if (/guarantee|guaranteed|support|funding|assistantship|scholarship|\$/i.test(factText)) {
+    if (
+      /guarantee|guaranteed|support|funding|assistantship|scholarship|\$/i.test(factText)
+    ) {
       draft.score += 12;
       draft.matched.push("Funding evidence exists, but exact terms still need review.");
     } else {
@@ -285,7 +292,9 @@ function scoreSchool(
 
   if (preference.maxTuition.trim()) {
     if (/\$|tuition|fee/i.test(factText)) {
-      draft.missing.push(`Compare listed amounts against ${preference.budgetCurrency} ${preference.maxTuition}.`);
+      draft.missing.push(
+        `Compare listed amounts against ${preference.budgetCurrency} ${preference.maxTuition}.`
+      );
     } else {
       draft.score -= 4;
       draft.missing.push("Tuition amount is needed before budget comparison.");
@@ -303,10 +312,15 @@ function scoreSchool(
 
   if (preference.researchPriority === "high") {
     if (subjectTerms.length || context?.openDataProfile?.topics.length) draft.score += 4;
-    else draft.missing.push("Research priority is high, but research topics are not connected.");
+    else
+      draft.missing.push(
+        "Research priority is high, but research topics are not connected."
+      );
   }
   if (preference.employmentPriority === "high") {
-    draft.missing.push("Employment outcomes, co-op, or job-market notes are not connected yet.");
+    draft.missing.push(
+      "Employment outcomes, co-op, or job-market notes are not connected yet."
+    );
   }
   if (preference.immigrationPriority === "high") {
     draft.missing.push("Immigration pathway notes are not connected yet.");
@@ -321,12 +335,17 @@ function scoreSchool(
     },
     {
       strong: "Connected evidence matches several important preferences.",
-      possible: "There are useful fit signals, but at least one major item needs checking.",
+      possible:
+        "There are useful fit signals, but at least one major item needs checking.",
       weak: "Current evidence does not support a strong fit yet."
     },
     {
-      strong: draft.missing.length ? "Verify the highest-impact missing facts before Shortlist." : "Compare it with nearby shortlist candidates.",
-      possible: draft.concerns.length ? "Resolve the top concern before moving this to Shortlist." : "Fill missing evidence and decide whether it belongs in Longlist.",
+      strong: draft.missing.length
+        ? "Verify the highest-impact missing facts before Shortlist."
+        : "Compare it with nearby shortlist candidates.",
+      possible: draft.concerns.length
+        ? "Resolve the top concern before moving this to Shortlist."
+        : "Fill missing evidence and decide whether it belongs in Longlist.",
       weak: "Check department/advisor evidence before investing more time."
     }
   );
@@ -373,39 +392,56 @@ function scoreDepartment(
     )
     .join(" ");
   const draft: RecommendationDraft = { score: 0, matched: [], concerns: [], missing: [] };
-  const { score: matchScore, matches } = weightedMatchScore(keywordTerms, areaTerms, [departmentText, advisorText]);
+  const { score: matchScore, matches } = weightedMatchScore(keywordTerms, areaTerms, [
+    departmentText,
+    advisorText
+  ]);
 
   if (matches.length) {
     draft.score += Math.min(28, matchScore);
     draft.matched.push(`Matches profile terms: ${matches.slice(0, 3).join(", ")}.`);
   } else if (allTerms.length) {
-    draft.concerns.push("No direct profile-term match in department or linked advisor evidence.");
+    draft.concerns.push(
+      "No direct profile-term match in department or linked advisor evidence."
+    );
   } else {
-    draft.missing.push("Add subject or research keywords to personalize department ranking.");
+    draft.missing.push(
+      "Add subject or research keywords to personalize department ranking."
+    );
   }
 
-  if (/computer|informatique|software|logiciel|data|mila|engineering/i.test(departmentText)) {
+  if (
+    /computer|informatique|software|logiciel|data|mila|engineering/i.test(departmentText)
+  ) {
     draft.score += 8;
     draft.matched.push("Department identity has a CS/software/data/engineering signal.");
   }
 
   if (linkedAdvisors.length) {
     draft.score += Math.min(18, linkedAdvisors.length * 6);
-    draft.matched.push(`${linkedAdvisors.length} recommended advisor${linkedAdvisors.length === 1 ? "" : "s"} linked.`);
+    draft.matched.push(
+      `${linkedAdvisors.length} recommended advisor${linkedAdvisors.length === 1 ? "" : "s"} linked.`
+    );
   } else {
-    draft.missing.push("No curated advisor recommendation is linked to this department yet.");
+    draft.missing.push(
+      "No curated advisor recommendation is linked to this department yet."
+    );
   }
 
   if (department.count >= 20) {
     draft.score += 5;
-    draft.matched.push(`${department.count} faculty entries give this department a useful exploration surface.`);
+    draft.matched.push(
+      `${department.count} faculty entries give this department a useful exploration surface.`
+    );
   } else if (department.count < 5) {
     draft.missing.push("Department faculty coverage is still thin.");
   }
 
   if (preference.researchPriority === "high" && !linkedAdvisors.length) {
     draft.score -= 6;
-    draft.concerns.push("Research priority is high, but supervisor-level matches are not curated yet.");
+    draft.concerns.push(
+      "Research priority is high, but supervisor-level matches are not curated yet."
+    );
   }
 
   return buildResult(
@@ -416,7 +452,8 @@ function scoreDepartment(
       weak: "Needs more evidence"
     },
     {
-      strong: "This department has profile matches and enough evidence to keep exploring.",
+      strong:
+        "This department has profile matches and enough evidence to keep exploring.",
       possible: "This department has some useful signals, but needs more verification.",
       weak: "Current department evidence is too thin or too generic."
     },
@@ -428,7 +465,10 @@ function scoreDepartment(
   );
 }
 
-function scoreAdvisor(advisor: AdvisorCard, preference: PreferenceProfile): RecommendationResult {
+function scoreAdvisor(
+  advisor: AdvisorCard,
+  preference: PreferenceProfile
+): RecommendationResult {
   const keywordTerms = getKeywordTerms(preference);
   const areaTerms = getAreaTerms(preference);
   const allTerms = [...new Set([...keywordTerms, ...areaTerms])];
@@ -445,7 +485,12 @@ function scoreAdvisor(advisor: AdvisorCard, preference: PreferenceProfile): Reco
     .join(" ");
   const draft: RecommendationDraft = { score: 0, matched: [], concerns: [], missing: [] };
   // keyword matching against researchAreas only — distinguishes "they research X" from "frame outreach around X"
-  const { score: matchScore, matches } = weightedMatchScore(keywordTerms, areaTerms, advisor.researchAreas, [researchText]);
+  const { score: matchScore, matches } = weightedMatchScore(
+    keywordTerms,
+    areaTerms,
+    advisor.researchAreas,
+    [researchText]
+  );
 
   if (matches.length) {
     draft.score += matchScore;
@@ -453,18 +498,24 @@ function scoreAdvisor(advisor: AdvisorCard, preference: PreferenceProfile): Reco
   } else if (allTerms.length) {
     draft.concerns.push("No direct match to current subject or research keywords.");
   } else {
-    draft.missing.push("Add subject or research keywords to personalize advisor ranking.");
+    draft.missing.push(
+      "Add subject or research keywords to personalize advisor ranking."
+    );
   }
 
   if (advisor.priorityScore) {
     draft.score += Math.min(12, Math.max(0, advisor.priorityScore - 60) / 4);
-    draft.matched.push(`Curated advisor signal: ${advisor.priority ?? advisor.priorityScore}.`);
+    draft.matched.push(
+      `Curated advisor signal: ${advisor.priority ?? advisor.priorityScore}.`
+    );
   }
 
   if (preference.researchPriority === "high") {
     if (advisor.researchAreas.length) {
       draft.score += 8;
-      draft.matched.push("Research priority is high and advisor research areas are available.");
+      draft.matched.push(
+        "Research priority is high and advisor research areas are available."
+      );
     } else {
       draft.score -= 6;
       draft.missing.push("Advisor research areas need verification.");
@@ -472,29 +523,40 @@ function scoreAdvisor(advisor: AdvisorCard, preference: PreferenceProfile): Reco
   }
 
   if (preference.degreeLevel) {
-    const degreeMatches = findMatchingTerms(splitPreferenceTerms(preference.degreeLevel), [
-      advisor.targetPrograms.join(" "),
-      advisor.fitSummary
-    ]);
+    const degreeMatches = findMatchingTerms(
+      splitPreferenceTerms(preference.degreeLevel),
+      [advisor.targetPrograms.join(" "), advisor.fitSummary]
+    );
     if (degreeMatches.length) {
       draft.score += 8;
-      draft.matched.push(`Target program signal: ${degreeMatches.slice(0, 2).join(", ")}.`);
+      draft.matched.push(
+        `Target program signal: ${degreeMatches.slice(0, 2).join(", ")}.`
+      );
     } else {
-      draft.missing.push(`Check whether this advisor supervises ${preference.degreeLevel} students.`);
+      draft.missing.push(
+        `Check whether this advisor supervises ${preference.degreeLevel} students.`
+      );
     }
   }
 
   if (advisor.politicalSensitivity) {
-    draft.concerns.push(`Handle outreach carefully: sensitivity ${advisor.politicalSensitivity}.`);
+    draft.concerns.push(
+      `Handle outreach carefully: sensitivity ${advisor.politicalSensitivity}.`
+    );
   }
 
-  if (preference.employmentPriority === "high" && /software|systems|engineering|industry|data/i.test(researchText)) {
+  if (
+    preference.employmentPriority === "high" &&
+    /software|systems|engineering|industry|data/i.test(researchText)
+  ) {
     draft.score += 4;
     draft.matched.push("Employment priority has an applied software/systems signal.");
   }
 
   if (preference.immigrationPriority === "high") {
-    draft.missing.push("Advisor fit does not answer immigration fit; check school/city notes.");
+    draft.missing.push(
+      "Advisor fit does not answer immigration fit; check school/city notes."
+    );
   }
 
   return buildResult(

@@ -192,8 +192,10 @@ export const localDecisionFacts: SchoolDecisionFact[] = [
     amounts: [],
     rawLabel:
       "The funding page states that full-time MMath and PhD students should review expected funding income and costs associated with the program.",
-    evidenceUrl: "https://cs.uwaterloo.ca/future-graduate-students/funding-graduate-studies",
-    sourceUrl: "https://cs.uwaterloo.ca/future-graduate-students/funding-graduate-studies",
+    evidenceUrl:
+      "https://cs.uwaterloo.ca/future-graduate-students/funding-graduate-studies",
+    sourceUrl:
+      "https://cs.uwaterloo.ca/future-graduate-students/funding-graduate-studies",
     confidence: 0.82
   },
   {
@@ -205,8 +207,10 @@ export const localDecisionFacts: SchoolDecisionFact[] = [
     amounts: [],
     rawLabel:
       "Graduate tuition and fees are listed one term at a time and are subject to change on an annual basis by the University of Waterloo.",
-    evidenceUrl: "https://cs.uwaterloo.ca/future-graduate-students/funding-graduate-studies",
-    sourceUrl: "https://cs.uwaterloo.ca/future-graduate-students/funding-graduate-studies",
+    evidenceUrl:
+      "https://cs.uwaterloo.ca/future-graduate-students/funding-graduate-studies",
+    sourceUrl:
+      "https://cs.uwaterloo.ca/future-graduate-students/funding-graduate-studies",
     confidence: 0.82
   },
   {
@@ -217,8 +221,10 @@ export const localDecisionFacts: SchoolDecisionFact[] = [
     topic: "tuition",
     amounts: ["$786.00"],
     rawLabel: "The funding page lists a co-op work-term fee of $786.00.",
-    evidenceUrl: "https://cs.uwaterloo.ca/future-graduate-students/funding-graduate-studies",
-    sourceUrl: "https://cs.uwaterloo.ca/future-graduate-students/funding-graduate-studies",
+    evidenceUrl:
+      "https://cs.uwaterloo.ca/future-graduate-students/funding-graduate-studies",
+    sourceUrl:
+      "https://cs.uwaterloo.ca/future-graduate-students/funding-graduate-studies",
     confidence: 0.82
   },
   {
@@ -312,7 +318,8 @@ export const localDecisionFacts: SchoolDecisionFact[] = [
     department: "Computer Science and Operations Research",
     duration: "45 credits",
     amounts: [],
-    rawLabel: "DIRO lists the Master's in Computer Science as a 45-credit graduate program.",
+    rawLabel:
+      "DIRO lists the Master's in Computer Science as a 45-credit graduate program.",
     evidenceUrl:
       "https://diro.umontreal.ca/english/programs/graduate-programs/masters-in-computer-science/",
     sourceUrl:
@@ -344,7 +351,8 @@ export const localDecisionFacts: SchoolDecisionFact[] = [
     department: "Computer Science",
     duration: "90 credits",
     amounts: [],
-    rawLabel: "Université de Montréal admissions lists the PhD in Computer Science as a 90-credit program.",
+    rawLabel:
+      "Université de Montréal admissions lists the PhD in Computer Science as a 90-credit program.",
     evidenceUrl: "https://admission.umontreal.ca/en/programs/phd-in-computer-science/",
     sourceUrl: "https://admission.umontreal.ca/en/programs/phd-in-computer-science/",
     confidence: 0.84
@@ -357,7 +365,8 @@ export const localDecisionFacts: SchoolDecisionFact[] = [
     degreeLevel: "PhD",
     department: "Computer Science",
     amounts: [],
-    rawLabel: "The admissions page states that all PhD candidates are guaranteed funding.",
+    rawLabel:
+      "The admissions page states that all PhD candidates are guaranteed funding.",
     evidenceUrl: "https://admission.umontreal.ca/en/programs/phd-in-computer-science/",
     sourceUrl: "https://admission.umontreal.ca/en/programs/phd-in-computer-science/",
     confidence: 0.84

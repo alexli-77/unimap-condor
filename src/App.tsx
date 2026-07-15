@@ -25,6 +25,11 @@ import { api, onDataSourceChange, type DataSource } from "./api";
 import mascotLogo from "../docs/assets/mascot.webp";
 import { WelcomeOverlay } from "./components/WelcomeOverlay";
 import {
+  RANKINGS_DISCLAIMER,
+  RANKING_LIST_LIMIT,
+  getRankingSourceLink
+} from "./rankingSources";
+import {
   defaultRecommendationPolicy,
   findMatchingTerms,
   normalizeSignal,
@@ -1193,6 +1198,12 @@ export function App() {
     );
   }, [favorites]);
 
+  const pinnedUniversityIds = useMemo(() => {
+    const ids = new Set<number>(favorites.map((favorite) => favorite.universityId));
+    if (selected) ids.add(selected.properties.universityId);
+    return ids;
+  }, [favorites, selected]);
+
   const stats = useMemo(() => {
     const countries = new Set(filteredFeatures.map((f) => f.properties.country));
     const bestRank = filteredFeatures.reduce<number | null>((best, feature) => {
@@ -1502,21 +1513,30 @@ export function App() {
                   <RankingListPanel
                     features={filteredFeatures}
                     mode={mode}
+                    pinnedIds={pinnedUniversityIds}
                     onSelect={handleSelectFeature}
                   />
 
                   {activeAvailability && (
                     <div className="source-footer">
-                      <span>Source:</span>
-                      <a
-                        className="provider"
-                        href={activeAvailability.source.url}
-                        target="_blank"
-                        rel="noreferrer"
-                      >
-                        {activeAvailability.source.attribution}
-                        <ExternalLink size={14} />
-                      </a>
+                      <div className="source-footer-row">
+                        <span>Source:</span>
+                        <a
+                          className="provider"
+                          href={
+                            getRankingSourceLink(
+                              activeAvailability.source.name,
+                              activeAvailability.source.url
+                            )?.url ?? activeAvailability.source.url
+                          }
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          {activeAvailability.source.attribution}
+                          <ExternalLink size={14} />
+                        </a>
+                      </div>
+                      <small className="ranking-disclaimer">{RANKINGS_DISCLAIMER}</small>
                     </div>
                   )}
                 </>
@@ -1719,10 +1739,12 @@ function SearchResults({
 function RankingListPanel({
   features,
   mode,
+  pinnedIds,
   onSelect
 }: {
   features: RankingFeature[];
   mode: Mode;
+  pinnedIds: Set<number>;
   onSelect: (feature: RankingFeature) => void;
 }) {
   const rows = useMemo(
@@ -1735,17 +1757,35 @@ function RankingListPanel({
     [features]
   );
 
+  // Compliance: never republish a full third-party league table locally. Show a
+  // capped reference slice (top rows + pinned/selected schools) and point the
+  // complete ranking at the official publisher.
+  const { visibleRows, hiddenCount } = useMemo(() => {
+    const top = rows.slice(0, RANKING_LIST_LIMIT);
+    const shownIds = new Set(top.map((feature) => feature.properties.universityId));
+    const pinnedExtras = rows.filter(
+      (feature) =>
+        pinnedIds.has(feature.properties.universityId) &&
+        !shownIds.has(feature.properties.universityId)
+    );
+    const visible = [...top, ...pinnedExtras];
+    return { visibleRows: visible, hiddenCount: Math.max(0, rows.length - visible.length) };
+  }, [rows, pinnedIds]);
+
+  const sourceName = features[0]?.properties.sourceName;
+  const officialLink = getRankingSourceLink(sourceName, features[0]?.properties.sourceUrl);
+
   return (
     <details className="ranking-list-panel">
       <summary>
         <div>
-          <strong>All school rankings</strong>
-          <span>{features[0]?.properties.sourceName ?? "Current source"}</span>
+          <strong>Top school rankings</strong>
+          <span>{sourceName ?? "Current source"}</span>
         </div>
         <ChevronDown size={16} />
       </summary>
       <div className="ranking-list">
-        {rows.map((feature) => {
+        {visibleRows.map((feature) => {
           const p = feature.properties;
           const rank =
             mode === "rankings"
@@ -1763,6 +1803,27 @@ function RankingListPanel({
             </button>
           );
         })}
+      </div>
+      <div className="ranking-list-compliance">
+        {hiddenCount > 0 && (
+          <p>
+            Showing the top {RANKING_LIST_LIMIT}
+            {pinnedIds.size ? " plus your saved schools" : ""} of {rows.length}. View the
+            complete ranking on the official site.
+          </p>
+        )}
+        {officialLink && (
+          <a
+            className="external-chip"
+            href={officialLink.url}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            {officialLink.label}
+            <ExternalLink size={13} />
+          </a>
+        )}
+        <small className="ranking-disclaimer">{RANKINGS_DISCLAIMER}</small>
       </div>
     </details>
   );
@@ -3177,6 +3238,7 @@ function DecisionFactItem({ fact }: { fact: SchoolDecisionFact }) {
 
 function RankingsPanel({ feature, mode }: { feature: RankingFeature; mode: Mode }) {
   const p = feature.properties;
+  const officialLink = getRankingSourceLink(p.sourceName, p.sourceUrl);
   return (
     <div className="tab-panel">
       <div className="rank-row">
@@ -3213,7 +3275,22 @@ function RankingsPanel({ feature, mode }: { feature: RankingFeature; mode: Mode 
       ) : (
         <p className="muted">Switch to Subject Strength to compare normalized subject signals.</p>
       )}
-      <ExternalChip href={p.sourceUrl} label={`${p.sourceName} source`} />
+      <div className="ranking-list-compliance">
+        {officialLink ? (
+          <a
+            className="external-chip"
+            href={officialLink.url}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            {officialLink.label}
+            <ExternalLink size={13} />
+          </a>
+        ) : (
+          <ExternalChip href={p.sourceUrl} label={`${p.sourceName} source`} />
+        )}
+        <small className="ranking-disclaimer">{RANKINGS_DISCLAIMER}</small>
+      </div>
     </div>
   );
 }

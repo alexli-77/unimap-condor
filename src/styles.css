@@ -525,12 +525,42 @@ textarea:focus {
 }
 
 .source-footer {
-  display: flex;
-  align-items: center;
-  gap: 6px;
+  display: grid;
+  gap: 5px;
   padding: 2px 4px 0;
   color: #617087;
   font-size: 13px;
+}
+
+.source-footer-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ranking-disclaimer {
+  display: block;
+  color: #8a97ab;
+  font-size: 11.5px;
+  line-height: 1.4;
+}
+
+.ranking-list-compliance {
+  display: grid;
+  gap: 8px;
+  padding: 10px 12px 12px;
+  border-top: 1px solid #e5ebf2;
+}
+
+.ranking-list-compliance p {
+  margin: 0;
+  color: #617087;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.ranking-list-compliance .external-chip {
+  justify-self: start;
 }
 
 .ranking-list-panel {

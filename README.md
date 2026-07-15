@@ -41,7 +41,27 @@ Additional open-data enrichment uses:
 - [ROR](https://ror.org/) for research organization registry metadata.
 - Wikidata/Wikipedia links when available through OpenAlex/ROR.
 
-Ranking ownership remains with each original data provider. Check provider terms before public or commercial reuse.
+### Ranking data compliance
+
+Ranking tables are owned by their original publishers. To respect that
+ownership, UniMap Condor does **not** republish full third-party league tables
+in the UI:
+
+- Every ranking surface (filters, the ranking list, and the Rankings tab) shows
+  a source label, the disclaimer _"Rankings © respective publishers, shown for
+  reference only,"_ and an official outbound link
+  (`target="_blank" rel="noopener noreferrer"`) to the publisher's site:
+  [QS](https://www.topuniversities.com/world-university-rankings),
+  [Times Higher Education](https://www.timeshighereducation.com/world-university-rankings),
+  [ShanghaiRanking](https://www.shanghairanking.com/rankings), and
+  [CSRankings](https://csrankings.org/).
+- The bundled offline snapshot (`src/localRankings/qs2027Overall.json`) is used
+  only to power the map, fit signals, and comparison — the on-screen list is
+  capped to a top reference slice plus your saved schools. The complete ranking
+  is always reached through the official link above.
+
+Ranking ownership remains with each original data provider. Check provider terms
+before public or commercial reuse.
 
 ## Quick Start
 

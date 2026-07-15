@@ -370,5 +370,253 @@ export const localDecisionFacts: SchoolDecisionFact[] = [
     evidenceUrl: "https://admission.umontreal.ca/en/programs/phd-in-computer-science/",
     sourceUrl: "https://admission.umontreal.ca/en/programs/phd-in-computer-science/",
     confidence: 0.84
+  },
+
+  // ---------------------------------------------------------------------------
+  // Employment & immigration decision facts (LEO-190)
+  // Employment outcomes / co-op and PGWP / provincial-nomination pathways for
+  // the four Canadian sample schools. Policy items are marked "as of 2026-07"
+  // because PGWP/PNP/PEQ rules changed materially in 2024-2026.
+  // ---------------------------------------------------------------------------
+
+  // --- University of Waterloo ---
+  {
+    id: "waterloo-mmath-coop",
+    institutionName: "University of Waterloo",
+    recordType: "employment",
+    title: "MMath (Computer Science) co-op work term",
+    department: "Computer Science",
+    programFormat: "graduate co-operative program",
+    amounts: [],
+    rawLabel:
+      "The MMath (Computer Science) co-operative program requires a minimum of one co-op work term of 12-16 weeks of full-time employment with a suitable industrial organization; students can expect to complete the degree within two years.",
+    evidenceUrl:
+      "https://cs.uwaterloo.ca/current-graduate-students/overview-degree-programs/master-mathematics-computer-science",
+    sourceUrl:
+      "https://cs.uwaterloo.ca/current-graduate-students/overview-degree-programs/master-mathematics-computer-science",
+    confidence: 0.9,
+    verifiedAt: "2026-07-15"
+  },
+  {
+    id: "waterloo-coop-scale",
+    institutionName: "University of Waterloo",
+    recordType: "employment",
+    title: "Co-op scale and employment statistics",
+    amounts: [],
+    rawLabel:
+      "Waterloo operates one of the world's largest co-operative education programs, connecting students with a broad multi-industry employer network; current co-op employment statistics are published and refreshed regularly through the Co-op Data Hub.",
+    evidenceUrl:
+      "https://uwaterloo.ca/co-operative-education/about-co-op/employment-statistics",
+    sourceUrl:
+      "https://uwaterloo.ca/co-operative-education/about-co-op/employment-statistics",
+    confidence: 0.8,
+    verifiedAt: "2026-07-15"
+  },
+  {
+    id: "waterloo-grad-earnings",
+    institutionName: "University of Waterloo",
+    recordType: "employment",
+    title: "Graduate earnings indicator",
+    topic: "earnings",
+    amounts: ["$60,000+"],
+    rawLabel:
+      "Institution-wide key performance indicators report that median earnings two years after graduation for students completing master's and doctoral degrees have exceeded $60,000 since 2010; this is a university-level figure, not program-specific.",
+    evidenceUrl:
+      "https://uwaterloo.ca/institutional-analysis-planning/key-performance-indicators-university-waterloo-2024",
+    sourceUrl:
+      "https://uwaterloo.ca/institutional-analysis-planning/key-performance-indicators-university-waterloo-2024",
+    confidence: 0.62,
+    verifiedAt: "2026-07-15"
+  },
+  {
+    id: "waterloo-pgwp",
+    institutionName: "University of Waterloo",
+    recordType: "immigration",
+    title: "Post-Graduation Work Permit eligibility",
+    topic: "pgwp",
+    amounts: ["3 years"],
+    rawLabel:
+      "As of 2026-07, master's graduates are eligible for a 3-year Post-Graduation Work Permit regardless of program length (rule effective 2024-02-15) and are exempt from the field-of-study requirement introduced 2024-11-01; a valid English or French language test result (about CLB 7 for university graduates) is required at application.",
+    evidenceUrl:
+      "https://www.canada.ca/en/immigration-refugees-citizenship/services/study-canada/work/after-graduation/eligibility.html",
+    sourceUrl:
+      "https://www.canada.ca/en/immigration-refugees-citizenship/services/study-canada/work/after-graduation/about.html",
+    confidence: 0.85,
+    verifiedAt: "2026-07-15"
+  },
+  {
+    id: "waterloo-oinp",
+    institutionName: "University of Waterloo",
+    recordType: "immigration",
+    title: "Ontario nomination pathway (policy change)",
+    topic: "provincial-nomination",
+    amounts: [],
+    rawLabel:
+      "As of 2026-07, Ontario's OINP Masters Graduate stream (which previously let graduates seek permanent residence without a job offer) was permanently closed on 2026-06-26 and replaced by the Ontario Workforce Priority stream, which requires a full-time permanent Ontario job offer in a TEER 0-3 occupation; the Expression of Interest system is closed to new entries.",
+    evidenceUrl:
+      "https://www.ontario.ca/page/2026-ontario-immigrant-nominee-program-updates",
+    sourceUrl:
+      "https://www.ontario.ca/page/2026-ontario-immigrant-nominee-program-updates",
+    confidence: 0.8,
+    verifiedAt: "2026-07-15"
+  },
+
+  // --- University of Toronto ---
+  {
+    id: "uoft-mscac-internship",
+    institutionName: "University of Toronto",
+    recordType: "employment",
+    title: "MScAC 8-month industry internship",
+    department: "Computer Science",
+    programFormat: "applied research internship",
+    amounts: ["~90%"],
+    rawLabel:
+      "Every MScAC student completes an 8-month applied-research internship (May to December); the program reports that approximately 90% of students each year receive an offer to stay at their internship company, with most alumni settling in Canada or the USA.",
+    evidenceUrl: "https://mscac.utoronto.ca/internships",
+    sourceUrl: "https://mscac.utoronto.ca/prospective-students/",
+    confidence: 0.82,
+    verifiedAt: "2026-07-15"
+  },
+  {
+    id: "uoft-mscac-partners",
+    institutionName: "University of Toronto",
+    recordType: "employment",
+    title: "MScAC employer partner network",
+    amounts: ["50+"],
+    rawLabel:
+      "The MScAC program lists 50+ industry partners that host applied-research internships, including Google, Microsoft, NVIDIA, Meta, Shopify, Adobe, AMD, Cohere, Scotiabank, CIBC and the Vector Institute.",
+    evidenceUrl: "https://mscac.utoronto.ca/partners/",
+    sourceUrl: "https://mscac.utoronto.ca/partners/",
+    confidence: 0.82,
+    verifiedAt: "2026-07-15"
+  },
+  {
+    id: "uoft-pgwp",
+    institutionName: "University of Toronto",
+    recordType: "immigration",
+    title: "Post-Graduation Work Permit eligibility",
+    topic: "pgwp",
+    amounts: ["3 years"],
+    rawLabel:
+      "As of 2026-07, master's graduates are eligible for a 3-year Post-Graduation Work Permit regardless of program length (rule effective 2024-02-15) and are exempt from the field-of-study requirement introduced 2024-11-01; a valid language test result (about CLB 7 for university graduates) is required at application.",
+    evidenceUrl:
+      "https://internationalexperience.utoronto.ca/international-student-services/immigration/working-in-canada/post-graduation-work-permit",
+    sourceUrl:
+      "https://www.canada.ca/en/immigration-refugees-citizenship/services/study-canada/work/after-graduation/about.html",
+    confidence: 0.85,
+    verifiedAt: "2026-07-15"
+  },
+  {
+    id: "uoft-oinp",
+    institutionName: "University of Toronto",
+    recordType: "immigration",
+    title: "Ontario nomination pathway (policy change)",
+    topic: "provincial-nomination",
+    amounts: [],
+    rawLabel:
+      "As of 2026-07, Ontario's OINP Masters Graduate stream (previously a no-job-offer permanent-residence route) was permanently closed on 2026-06-26 and replaced by the Ontario Workforce Priority stream, which requires a full-time permanent Ontario job offer in a TEER 0-3 occupation; the Expression of Interest system is closed to new entries.",
+    evidenceUrl:
+      "https://www.ontario.ca/page/2026-ontario-immigrant-nominee-program-updates",
+    sourceUrl:
+      "https://www.ontario.ca/page/2026-ontario-immigrant-nominee-program-updates",
+    confidence: 0.8,
+    verifiedAt: "2026-07-15"
+  },
+
+  // --- University of British Columbia ---
+  {
+    id: "ubc-mds-career",
+    institutionName: "University of British Columbia",
+    recordType: "employment",
+    title: "Master of Data Science career support",
+    department: "Computer Science",
+    programFormat: "10-month professional master's",
+    amounts: [],
+    rawLabel:
+      "The 10-month professional Master of Data Science (jointly delivered by Computer Science and Statistics) provides dedicated career services including career workshops, a mentoring program, employer information sessions and an annual technical career fair; graduates commonly enter data-science, ML-engineering and analytics roles in the Vancouver tech, finance and health sectors.",
+    evidenceUrl: "https://masterdatascience.ubc.ca/why-ubc/career-services",
+    sourceUrl: "https://masterdatascience.ubc.ca/why-ubc/career-services",
+    confidence: 0.78,
+    verifiedAt: "2026-07-15"
+  },
+  {
+    id: "ubc-pgwp",
+    institutionName: "University of British Columbia",
+    recordType: "immigration",
+    title: "Post-Graduation Work Permit eligibility",
+    topic: "pgwp",
+    amounts: ["3 years"],
+    rawLabel:
+      "As of 2026-07, master's graduates are eligible for a 3-year Post-Graduation Work Permit regardless of program length (rule effective 2024-02-15) and are exempt from the field-of-study requirement introduced 2024-11-01; a valid language test result (about CLB 7 for university graduates) is required at application.",
+    evidenceUrl: "https://www.grad.ubc.ca/study-work-permit-updates",
+    sourceUrl:
+      "https://www.canada.ca/en/immigration-refugees-citizenship/services/study-canada/work/after-graduation/about.html",
+    confidence: 0.85,
+    verifiedAt: "2026-07-15"
+  },
+  {
+    id: "ubc-bcpnp",
+    institutionName: "University of British Columbia",
+    recordType: "immigration",
+    title: "BC nomination pathway (suspended)",
+    topic: "provincial-nomination",
+    amounts: [],
+    rawLabel:
+      "As of 2026-07, the BC PNP International Post-Graduate stream (previously open to BC master's graduates in any field) is suspended: BC PNP paused new graduate-stream intakes on 2025-04-14 and waitlisted applications received after 2024-09-01, and the minimum language requirement was raised to CLB 8. Prospective students should verify whether the stream has reopened.",
+    evidenceUrl:
+      "https://moving2canada.com/news-and-features/news/immigration/pnp/bc-pnp-international-graduate-stream-closed/",
+    sourceUrl: "https://www.welcomebc.ca/immigrate-to-b-c/bc-pnp-graduate-streams-pdf",
+    confidence: 0.75,
+    verifiedAt: "2026-07-15"
+  },
+
+  // --- McGill University ---
+  {
+    id: "mcgill-gripecs",
+    institutionName: "McGill University",
+    recordType: "employment",
+    title: "Graduate Internship Program (GrIPECS)",
+    department: "Computer Science",
+    programFormat: "supervised graduate internship",
+    amounts: ["up to $2,000/month"],
+    rawLabel:
+      "McGill's Graduate Internship Program for Engineering and Computer Science (GrIPECS) lets eligible master's students complete a supervised industry internship of four to eight months during their studies; for master's students it can provide up to $2,000 per month for a full-time internship of up to four months when the host does not pay. McGill's CS thesis master's has no built-in co-op, so industry exposure runs through GrIPECS and the Montreal AI ecosystem.",
+    evidenceUrl:
+      "https://www.mcgill.ca/gps/funding/internship-funding-opportunities/graduate-internship-program-engineering-and-computer-science",
+    sourceUrl:
+      "https://www.mcgill.ca/gps/funding/internship-funding-opportunities/graduate-internship-program-engineering-and-computer-science/masters-students",
+    confidence: 0.75,
+    verifiedAt: "2026-07-15"
+  },
+  {
+    id: "mcgill-pgwp",
+    institutionName: "McGill University",
+    recordType: "immigration",
+    title: "Post-Graduation Work Permit eligibility",
+    topic: "pgwp",
+    amounts: ["3 years"],
+    rawLabel:
+      "As of 2026-07, master's graduates are eligible for a 3-year Post-Graduation Work Permit regardless of program length (rule effective 2024-02-15) and are exempt from the field-of-study requirement introduced 2024-11-01; a valid language test result (about CLB 7 for university graduates) is required at application.",
+    evidenceUrl:
+      "https://www.canada.ca/en/immigration-refugees-citizenship/services/study-canada/work/after-graduation/eligibility.html",
+    sourceUrl:
+      "https://www.canada.ca/en/immigration-refugees-citizenship/services/study-canada/work/after-graduation/about.html",
+    confidence: 0.85,
+    verifiedAt: "2026-07-15"
+  },
+  {
+    id: "mcgill-peq",
+    institutionName: "McGill University",
+    recordType: "immigration",
+    title: "Quebec nomination pathway (PEQ) and French requirement",
+    topic: "provincial-nomination",
+    amounts: [],
+    rawLabel:
+      "As of 2026-07, Quebec graduates immigrate through the Programme de l'experience quebecoise (PEQ) rather than a PNP: the PEQ graduate stream was closed on 2025-11-19 and reopens temporarily from 2026-07-02 to 2028-07-02. It requires proof of French at level 7 of the Quebec scale and application within 36 months of graduation via the Arrima portal, leading to a CSQ and then federal permanent residence. The French-language requirement is a significant hurdle for many international CS students.",
+    evidenceUrl:
+      "https://services.immigration-quebec.gouv.qc.ca/en/immigrate-settle/students/stay-quebec/application-csq/students-peq",
+    sourceUrl: "https://www.canadim.com/immigrate/quebec/peq/",
+    confidence: 0.75,
+    verifiedAt: "2026-07-15"
   }
 ];

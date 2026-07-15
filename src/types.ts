@@ -154,7 +154,8 @@ export type FacultyDirectoryPage = {
   sourceUrl?: string;
 };
 
-export type SchoolDecisionFactType = "program" | "tuition_funding";
+export type SchoolDecisionFactType =
+  "program" | "tuition_funding" | "employment" | "immigration";
 
 export type SchoolDecisionFact = {
   id: string;
@@ -179,4 +180,6 @@ export type SchoolDecisionFacts = {
   sourceLabel: string;
   programs: SchoolDecisionFact[];
   funding: SchoolDecisionFact[];
+  employment?: SchoolDecisionFact[];
+  immigration?: SchoolDecisionFact[];
 };

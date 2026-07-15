@@ -723,6 +723,24 @@ textarea:focus {
   display: none;
 }
 
+.shortlist-export-card {
+  margin-top: 10px;
+}
+
+.shortlist-export-card .workspace-backup-actions {
+  grid-template-columns: 1fr;
+}
+
+.shortlist-export-card .primary-button {
+  min-height: 34px;
+  width: 100%;
+}
+
+.shortlist-export-card .primary-button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
 .saved-list {
   display: grid;
   gap: 8px;

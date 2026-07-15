@@ -1,0 +1,17 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "https://disc-unimap.uibk.ac.at/api/:path*"
+    },
+    {
+      "source": "/openalex/:path*",
+      "destination": "https://api.openalex.org/:path*"
+    },
+    {
+      "source": "/ror/:path*",
+      "destination": "https://api.ror.org/:path*"
+    }
+  ]
+}

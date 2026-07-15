@@ -2,6 +2,7 @@ import {
   ArrowLeftRight,
   Building2,
   ChevronDown,
+  Download,
   ExternalLink,
   Globe2,
   Layers3,
@@ -12,6 +13,7 @@ import {
   SlidersHorizontal,
   Star,
   Trophy,
+  Upload,
   UserRoundSearch,
   X
 } from "lucide-react";
@@ -19,6 +21,14 @@ import maplibregl, { Map as MapLibreMap } from "maplibre-gl";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api } from "./api";
 import mascotLogo from "../docs/assets/unimap-condor-mascot.png";
+import {
+  defaultRecommendationPolicy,
+  findMatchingTerms,
+  normalizeSignal,
+  splitPreferenceTerms,
+  textMatchesTerm,
+  type RecommendationResult
+} from "./recommendationPolicy";
 import type {
   AdvisorCard,
   FacultyDepartmentSummary,
@@ -26,8 +36,12 @@ import type {
   FacultyDirectoryPage,
   FacultyDirectorySummary,
   OpenDataProfile,
+  PreferenceProfile,
+  PriorityLevel,
   RankingFeature,
   RankingFeatureCollection,
+  SchoolDecisionFact,
+  SchoolDecisionFacts,
   SourceAvailability,
   UniversityDetail
 } from "./types";
@@ -37,35 +51,12 @@ type MapStyleId = "liberty" | "bright" | "positron";
 type FavoriteKind = "school" | "subject" | "advisor";
 type LeftPanel = "filters" | "saved" | "compare" | "view";
 type PointSize = "small" | "normal" | "large";
-type PriorityLevel = "low" | "medium" | "high";
 type ApplicationStatus =
   | "interested"
   | "longlist"
   | "shortlist"
   | "applying"
   | "rejected";
-type PreferenceProfile = {
-  schemaVersion: 1;
-  updatedAt: string;
-  degreeLevel: string;
-  targetCountries: string;
-  targetCities: string;
-  budgetCurrency: string;
-  maxTuition: string;
-  fundingRequirement: string;
-  subjectAreas: string;
-  researchKeywords: string;
-  gpa: string;
-  languageScores: string;
-  background: string;
-  employmentPriority: PriorityLevel;
-  researchPriority: PriorityLevel;
-  immigrationPriority: PriorityLevel;
-  acceptsSmallCities: boolean;
-  acceptsCourseBased: boolean;
-  acceptsNichePrograms: boolean;
-  notes: string;
-};
 type StringPreferenceKey = {
   [K in keyof PreferenceProfile]: PreferenceProfile[K] extends string ? K : never;
 }[keyof PreferenceProfile];
@@ -105,6 +96,14 @@ type FitSignals = {
   missing: string[];
   nextAction: string;
 };
+type WorkspaceBackup = {
+  app: "unimap-condor";
+  schemaVersion: 1;
+  exportedAt: string;
+  favorites: FavoriteItem[];
+  schoolDecisions: Record<number, SchoolDecision>;
+  preferenceProfile: PreferenceProfile;
+};
 
 const mapStyles: Array<{ id: MapStyleId; label: string; url: string }> = [
   {
@@ -137,6 +136,7 @@ const palette = [
 
 type DetailTab =
   | "overview"
+  | "decision"
   | "rankings"
   | "research"
   | "faculty"
@@ -145,6 +145,7 @@ type DetailTab =
 
 const detailTabs: Array<{ id: DetailTab; label: string }> = [
   { id: "overview", label: "overview" },
+  { id: "decision", label: "decision" },
   { id: "rankings", label: "rankings" },
   { id: "research", label: "research" },
   { id: "faculty", label: "faculty" },
@@ -190,6 +191,111 @@ const favoritesStorageKey = "unimap.favorites";
 const preferenceStorageKey = "unimap.preferenceProfile";
 const schoolDecisionsStorageKey = "unimap.schoolDecisions";
 const facultyPageSize = 30;
+
+function isFavoriteKind(value: unknown): value is FavoriteKind {
+  return value === "school" || value === "subject" || value === "advisor";
+}
+
+function normalizeFavoriteItem(value: Partial<FavoriteItem>): FavoriteItem | null {
+  if (
+    typeof value.id !== "string" ||
+    !isFavoriteKind(value.kind) ||
+    typeof value.universityName !== "string" ||
+    typeof value.label !== "string"
+  ) {
+    return null;
+  }
+  const universityId = Number(value.universityId);
+  const longitude = Number(value.longitude);
+  const latitude = Number(value.latitude);
+  if (![universityId, longitude, latitude].every(Number.isFinite)) return null;
+
+  return {
+    id: value.id,
+    kind: value.kind,
+    universityId,
+    universityName: value.universityName,
+    city: value.city ?? "",
+    country: value.country ?? "",
+    longitude,
+    latitude,
+    label: value.label,
+    createdAt: value.createdAt ?? new Date().toISOString()
+  };
+}
+
+function normalizeSchoolDecisions(value: unknown): Record<number, SchoolDecision> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+  return Object.fromEntries(
+    Object.entries(value as Record<string, Partial<SchoolDecision>>)
+      .map(([key, item]) => {
+        const universityId = Number(item.universityId ?? key);
+        if (!Number.isFinite(universityId)) return null;
+        const status = applicationStatuses.some((statusItem) => statusItem.id === item.status)
+          ? (item.status as ApplicationStatus)
+          : "interested";
+        return [
+          universityId,
+          {
+            ...getDefaultSchoolDecision(universityId),
+            ...item,
+            universityId,
+            status,
+            keepReason: item.keepReason ?? "",
+            rejectReason: item.rejectReason ?? "",
+            nextAction: item.nextAction ?? "",
+            updatedAt: item.updatedAt ?? ""
+          }
+        ] as const;
+      })
+      .filter(Boolean) as Array<readonly [number, SchoolDecision]>
+  );
+}
+
+function normalizePreferenceProfile(value: unknown): PreferenceProfile {
+  if (!value || typeof value !== "object") return defaultPreferenceProfile;
+  const profile = value as Partial<PreferenceProfile>;
+  return {
+    ...defaultPreferenceProfile,
+    ...profile,
+    schemaVersion: 1,
+    updatedAt: profile.updatedAt ?? new Date().toISOString(),
+    employmentPriority: ["low", "medium", "high"].includes(profile.employmentPriority ?? "")
+      ? (profile.employmentPriority as PriorityLevel)
+      : "medium",
+    researchPriority: ["low", "medium", "high"].includes(profile.researchPriority ?? "")
+      ? (profile.researchPriority as PriorityLevel)
+      : "medium",
+    immigrationPriority: ["low", "medium", "high"].includes(profile.immigrationPriority ?? "")
+      ? (profile.immigrationPriority as PriorityLevel)
+      : "medium",
+    acceptsSmallCities: Boolean(profile.acceptsSmallCities ?? true),
+    acceptsCourseBased: Boolean(profile.acceptsCourseBased ?? true),
+    acceptsNichePrograms: Boolean(profile.acceptsNichePrograms ?? true)
+  };
+}
+
+function parseWorkspaceBackup(raw: string): WorkspaceBackup {
+  const parsed = JSON.parse(raw) as Partial<WorkspaceBackup> & {
+    favorites?: unknown;
+    schoolDecisions?: unknown;
+    preferenceProfile?: unknown;
+  };
+  const favorites = Array.isArray(parsed.favorites)
+    ? parsed.favorites
+        .map((item) => normalizeFavoriteItem(item as Partial<FavoriteItem>))
+        .filter(Boolean) as FavoriteItem[]
+    : [];
+
+  return {
+    app: "unimap-condor",
+    schemaVersion: 1,
+    exportedAt: parsed.exportedAt ?? new Date().toISOString(),
+    favorites,
+    schoolDecisions: normalizeSchoolDecisions(parsed.schoolDecisions),
+    preferenceProfile: normalizePreferenceProfile(parsed.preferenceProfile)
+  };
+}
 
 function formatCompact(value?: number) {
   if (value === undefined || Number.isNaN(value)) return "n/a";
@@ -348,68 +454,15 @@ function getPreferenceSignals(profile: PreferenceProfile) {
   ].filter(Boolean) as string[];
 }
 
-function normalizeSignal(value: string) {
-  return value
-    .normalize("NFD")
-    .replace(/\p{Diacritic}/gu, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, " ")
-    .trim();
-}
-
-function splitPreferenceTerms(value: string) {
-  const aliases: Record<string, string[]> = {
-    ai: ["artificial intelligence", "machine learning"],
-    cs: ["computer science"],
-    ds: ["data science"],
-    hci: ["human computer interaction", "human ai interaction"],
-    se: ["software engineering"]
-  };
-
-  return [
-    ...new Set(
-      value
-        .split(/[,，;；/|、\n]+/)
-        .map((item) => normalizeSignal(item))
-        .filter(Boolean)
-        .flatMap((term) => {
-          const tokenAliases = term
-            .split(" ")
-            .flatMap((token) => aliases[token] ?? []);
-          return [term, ...(aliases[term] ?? []), ...tokenAliases];
-        })
-    )
-  ];
-}
-
-function textMatchesTerm(text: string, term: string) {
-  const normalizedText = normalizeSignal(text);
-  const normalizedTerm = normalizeSignal(term);
-  if (!normalizedText || !normalizedTerm) return false;
-  return (
-    normalizedText.includes(normalizedTerm) ||
-    normalizedTerm.includes(normalizedText)
-  );
-}
-
-function findMatchingTerms(terms: string[], candidates: string[]) {
-  return terms.filter((term) =>
-    candidates.some((candidate) => textMatchesTerm(candidate, term))
-  );
-}
-
-function getRankSignal(feature: RankingFeature) {
-  const p = feature.properties;
-  const rank = p.rankValue ?? p.topSubjectRankValue;
-  if (!rank) return null;
-  if (rank <= 50) return { strength: 2, label: `Strong ranking signal: #${rank}` };
-  if (rank <= 150) return { strength: 1, label: `Usable ranking signal: #${rank}` };
-  return { strength: -1, label: `Ranking is outside top 150: #${rank}` };
-}
-
 function formatSourceBadge(sourceName: string) {
   if (/\bqs\b/i.test(sourceName)) return "QS";
   return sourceName;
+}
+
+function mapRecommendationLevelToFitLevel(level: RecommendationResult["level"]): FitLevel {
+  if (level === "strong") return "good";
+  if (level === "possible") return "possible";
+  return "weak";
 }
 
 function buildFitSignals(
@@ -417,109 +470,18 @@ function buildFitSignals(
   preference: PreferenceProfile,
   openDataProfile?: OpenDataProfile | null
 ): FitSignals {
-  const p = feature.properties;
-  const matched: string[] = [];
-  const risks: string[] = [];
-  const missing: string[] = [];
-  let score = 0;
-
-  const targetCountries = splitPreferenceTerms(preference.targetCountries);
-  const targetCities = splitPreferenceTerms(preference.targetCities);
-  const subjectTerms = splitPreferenceTerms(
-    [preference.subjectAreas, preference.researchKeywords].filter(Boolean).join(",")
-  );
-  const subjectCandidates = [
-    p.subject,
-    p.topSubject,
-    ...Object.keys(p.normalizedInvertedSubjectRanks ?? {}),
-    ...(openDataProfile?.topics.map((topic) => topic.name) ?? [])
-  ].filter(Boolean) as string[];
-  if (targetCountries.length) {
-    if (targetCountries.some((country) => textMatchesTerm(p.country, country))) {
-      matched.push(`Country matches your preference: ${p.country}`);
-      score += 2;
-    } else {
-      risks.push(`Country differs from your preference: ${p.country}`);
-      score -= 1;
-    }
-  } else {
-    missing.push("Target country is not set.");
-  }
-
-  if (targetCities.length) {
-    if (targetCities.some((city) => textMatchesTerm(p.city, city))) {
-      matched.push(`City matches your preference: ${p.city}`);
-      score += 2;
-    } else {
-      risks.push(`City is not in your target city list: ${p.city}`);
-      score -= 1;
-    }
-  } else {
-    missing.push("Target city is not set.");
-  }
-
-  if (subjectTerms.length) {
-    const rankingMatches = findMatchingTerms(subjectTerms, subjectCandidates);
-    if (rankingMatches.length) {
-      matched.push(`Subject/ranking match: ${rankingMatches.slice(0, 3).join(", ")}`);
-      score += 3;
-    }
-    if (!rankingMatches.length) {
-      risks.push("No clear subject or research keyword match in current school data.");
-      score -= 2;
-    }
-    missing.push("Open Faculty to check department and supervisor-level matches.");
-  } else {
-    missing.push("Subject or research keywords are not set.");
-  }
-
-  const rankSignal = getRankSignal(feature);
-  if (rankSignal) {
-    if (rankSignal.strength > 0) {
-      matched.push(rankSignal.label);
-      score += rankSignal.strength;
-    } else {
-      risks.push(rankSignal.label);
-      score += rankSignal.strength;
-    }
-  } else {
-    missing.push("Ranking value is missing for this source/subject.");
-  }
-
-  if (preference.fundingRequirement === "required" || preference.maxTuition.trim()) {
-    missing.push("Tuition and funding data are not connected yet.");
-  } else {
-    missing.push("Budget/funding preference is not specific yet.");
-  }
-
-  if (!openDataProfile?.topics.length) {
-    missing.push("OpenAlex research topics are unavailable for this school.");
-  }
-
-  const level: FitLevel = score >= 5 ? "good" : score >= 1 ? "possible" : "weak";
-  const label =
-    level === "good" ? "Good fit" : level === "possible" ? "Possible fit" : "Weak fit";
-  const summary =
-    level === "good"
-      ? "This school matches several of your current preferences."
-      : level === "possible"
-        ? "This school has useful signals, but needs more checking."
-        : "Current data does not show a strong fit yet.";
-  const nextAction =
-    risks.length > 0
-      ? "Review the risk items before moving this school to Shortlist."
-      : missing.length > 0
-        ? "Fill the missing data before making a shortlist decision."
-        : "Compare it with your other shortlist candidates.";
+  const result = defaultRecommendationPolicy.scoreSchool(feature, preference, {
+    openDataProfile
+  });
 
   return {
-    level,
-    label,
-    summary,
-    matched: matched.slice(0, 5),
-    risks: risks.slice(0, 4),
-    missing: missing.slice(0, 5),
-    nextAction
+    level: mapRecommendationLevelToFitLevel(result.level),
+    label: result.label,
+    summary: result.summary,
+    matched: result.matched,
+    risks: result.concerns,
+    missing: result.missing,
+    nextAction: result.nextAction
   };
 }
 
@@ -828,6 +790,7 @@ export function App() {
   const [showUniversityLabels, setShowUniversityLabels] = useState(false);
   const [pointSize, setPointSize] = useState<PointSize>("normal");
   const [query, setQuery] = useState("");
+  const [workspaceMessage, setWorkspaceMessage] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const debouncedQuery = useDebouncedValue(query);
@@ -1016,6 +979,49 @@ export function App() {
     };
     localStorage.setItem(preferenceStorageKey, JSON.stringify(nextProfile));
     setPreferenceProfile(nextProfile);
+  }, []);
+
+  const exportWorkspace = useCallback(() => {
+    const backup: WorkspaceBackup = {
+      app: "unimap-condor",
+      schemaVersion: 1,
+      exportedAt: new Date().toISOString(),
+      favorites,
+      schoolDecisions,
+      preferenceProfile
+    };
+    const blob = new Blob([JSON.stringify(backup, null, 2)], {
+      type: "application/json"
+    });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    const date = backup.exportedAt.slice(0, 10);
+    anchor.href = url;
+    anchor.download = `unimap-workspace-${date}.json`;
+    anchor.click();
+    URL.revokeObjectURL(url);
+    setWorkspaceMessage(`Exported ${favorites.length} saved items.`);
+  }, [favorites, preferenceProfile, schoolDecisions]);
+
+  const importWorkspace = useCallback(async (file: File) => {
+    try {
+      const backup = parseWorkspaceBackup(await file.text());
+      localStorage.setItem(favoritesStorageKey, JSON.stringify(backup.favorites));
+      localStorage.setItem(
+        schoolDecisionsStorageKey,
+        JSON.stringify(backup.schoolDecisions)
+      );
+      localStorage.setItem(
+        preferenceStorageKey,
+        JSON.stringify(backup.preferenceProfile)
+      );
+      setFavorites(backup.favorites);
+      setSchoolDecisions(backup.schoolDecisions);
+      setPreferenceProfile(backup.preferenceProfile);
+      setWorkspaceMessage(`Imported ${backup.favorites.length} saved items.`);
+    } catch (err) {
+      setWorkspaceMessage(err instanceof Error ? err.message : "Import failed.");
+    }
   }, []);
 
   const selectFavorite = useCallback(
@@ -1209,6 +1215,9 @@ export function App() {
                   favorites={favorites}
                   schoolDecisions={schoolDecisions}
                   onSelect={selectFavorite}
+                  onExportWorkspace={exportWorkspace}
+                  onImportWorkspace={importWorkspace}
+                  workspaceMessage={workspaceMessage}
                 />
               )}
 
@@ -1515,12 +1524,19 @@ function ViewPanel({
 function SavedPanel({
   favorites,
   schoolDecisions,
-  onSelect
+  onSelect,
+  onExportWorkspace,
+  onImportWorkspace,
+  workspaceMessage
 }: {
   favorites: FavoriteItem[];
   schoolDecisions: Record<number, SchoolDecision>;
   onSelect: (favorite: FavoriteItem) => void;
+  onExportWorkspace: () => void;
+  onImportWorkspace: (file: File) => void;
+  workspaceMessage: string;
 }) {
+  const importInputRef = useRef<HTMLInputElement | null>(null);
   const [activeStatus, setActiveStatus] = useState<ApplicationStatus>("interested");
   const favoritesByStatus = useMemo(
     () =>
@@ -1549,6 +1565,37 @@ function SavedPanel({
       <div className="panel-title">
         <Star size={18} />
         <h2>Saved</h2>
+      </div>
+      <div className="workspace-backup-card">
+        <div>
+          <strong>Local workspace</strong>
+          <span>Saved only in this browser. Export a backup before switching address or device.</span>
+        </div>
+        <div className="workspace-backup-actions">
+          <button className="ghost-button" type="button" onClick={onExportWorkspace}>
+            <Download size={15} />
+            Export
+          </button>
+          <button
+            className="ghost-button"
+            type="button"
+            onClick={() => importInputRef.current?.click()}
+          >
+            <Upload size={15} />
+            Import
+          </button>
+          <input
+            ref={importInputRef}
+            type="file"
+            accept="application/json,.json"
+            onChange={(event) => {
+              const file = event.target.files?.[0];
+              if (file) onImportWorkspace(file);
+              event.currentTarget.value = "";
+            }}
+          />
+        </div>
+        {workspaceMessage ? <p>{workspaceMessage}</p> : null}
       </div>
       {!favorites.length ? (
         <p className="muted">Star a university, subject, or advisor to show it here.</p>
@@ -2055,6 +2102,13 @@ function UniversityCard({
       {tab === "overview" && (
         <OverviewPanel feature={feature} preferenceProfile={preferenceProfile} />
       )}
+      {tab === "decision" && (
+        <DecisionPanel
+          feature={feature}
+          preferenceProfile={preferenceProfile}
+          decision={decision}
+        />
+      )}
       {tab === "rankings" && <RankingsPanel feature={feature} mode={mode} />}
       {tab === "research" && <ResearchPanel feature={feature} />}
       {tab === "faculty" && (
@@ -2067,6 +2121,7 @@ function UniversityCard({
       {tab === "recommendations" && (
         <RecommendationsPanel
           feature={feature}
+          preferenceProfile={preferenceProfile}
           isFavorite={isFavorite}
           onToggleFavorite={onToggleFavorite}
         />
@@ -2376,6 +2431,393 @@ function PreferenceSignalPanel({ profile }: { profile: PreferenceProfile }) {
   );
 }
 
+function useSchoolDecisionFacts(feature: RankingFeature) {
+  const p = feature.properties;
+  const [facts, setFacts] = useState<SchoolDecisionFacts | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    setLoading(true);
+    api
+      .getSchoolDecisionFacts(p.universityName, controller.signal)
+      .then(setFacts)
+      .catch((err) => {
+        if (err.name !== "AbortError") setFacts(null);
+      })
+      .finally(() => setLoading(false));
+
+    return () => controller.abort();
+  }, [p.universityName]);
+
+  return { facts, loading };
+}
+
+function getDecisionFactTags(fact: SchoolDecisionFact) {
+  return [
+    fact.degreeLevel,
+    fact.department,
+    fact.duration,
+    fact.programFormat,
+    fact.topic,
+    ...fact.amounts
+  ].filter(Boolean) as string[];
+}
+
+function buildDecisionGaps(
+  facts: SchoolDecisionFacts | null,
+  preferenceProfile: PreferenceProfile,
+  decision: SchoolDecision
+) {
+  const gaps: string[] = [];
+  const programs = facts?.programs ?? [];
+  const funding = facts?.funding ?? [];
+  const factText = [...programs, ...funding]
+    .map((fact) => `${fact.title} ${fact.rawLabel} ${getDecisionFactTags(fact).join(" ")}`)
+    .join(" ");
+
+  if (!programs.length) gaps.push("Program options are not verified for this school yet.");
+  if (!funding.length) gaps.push("Funding or tuition facts are not verified for this school yet.");
+  if (!/deadline|before|december|february|august|september|fall|winter/i.test(factText)) {
+    gaps.push("Application deadline needs a direct source check.");
+  }
+  if (
+    (preferenceProfile.fundingRequirement === "required" ||
+      preferenceProfile.maxTuition.trim()) &&
+    !/funding|tuition|support|fee|assistantship|\$|cad/i.test(factText)
+  ) {
+    gaps.push("Budget or funding requirement needs a stronger evidence item.");
+  }
+  if (preferenceProfile.degreeLevel && programs.length) {
+    const desiredDegree = normalizeSignal(preferenceProfile.degreeLevel);
+    const hasDegree = programs.some((program) =>
+      normalizeSignal([program.degreeLevel, program.title, program.rawLabel].join(" ")).includes(
+        desiredDegree
+      )
+    );
+    if (!hasDegree) gaps.push(`No verified ${preferenceProfile.degreeLevel} program match yet.`);
+  }
+  if (!decision.keepReason.trim() && decision.status !== "rejected") {
+    gaps.push("Add one keep reason before moving this into Shortlist.");
+  }
+  if (decision.status === "rejected" && !decision.rejectReason.trim()) {
+    gaps.push("Add the exclusion reason so this decision is reusable later.");
+  }
+
+  return gaps.slice(0, 5);
+}
+
+function buildDecisionInterpretation(
+  feature: RankingFeature,
+  facts: SchoolDecisionFacts | null,
+  preferenceProfile: PreferenceProfile,
+  decision: SchoolDecision
+) {
+  const p = feature.properties;
+  const programs = facts?.programs ?? [];
+  const funding = facts?.funding ?? [];
+  const allFacts = [...programs, ...funding];
+  const factText = allFacts
+    .map((fact) => `${fact.title} ${fact.rawLabel} ${getDecisionFactTags(fact).join(" ")}`)
+    .join(" ");
+  const policyResult = defaultRecommendationPolicy.scoreSchool(feature, preferenceProfile, {
+    decisionFacts: facts
+  });
+  const matched: string[] = [...policyResult.matched];
+  const concerns: string[] = [...policyResult.concerns];
+  const missing = [...buildDecisionGaps(facts, preferenceProfile, decision), ...policyResult.missing];
+
+  const targetCountries = splitPreferenceTerms(preferenceProfile.targetCountries);
+  if (targetCountries.length) {
+    if (targetCountries.some((country) => textMatchesTerm(p.country, country))) {
+      matched.push(`Location matches target country: ${p.country}.`);
+    } else {
+      concerns.push(`Country is ${p.country}, outside the current target country list.`);
+    }
+  }
+
+  const targetCities = splitPreferenceTerms(preferenceProfile.targetCities);
+  if (targetCities.length) {
+    if (targetCities.some((city) => textMatchesTerm(p.city, city))) {
+      matched.push(`City matches target city: ${p.city}.`);
+    } else {
+      concerns.push(`City is ${p.city}, not one of the current target cities.`);
+    }
+  }
+
+  if (preferenceProfile.degreeLevel && programs.length) {
+    const desiredDegree = normalizeSignal(preferenceProfile.degreeLevel);
+    const degreeMatches = programs.filter((program) =>
+      normalizeSignal([program.degreeLevel, program.title, program.rawLabel].join(" ")).includes(
+        desiredDegree
+      )
+    );
+    if (degreeMatches.length) {
+      matched.push(
+        `Verified ${preferenceProfile.degreeLevel} option: ${degreeMatches
+          .slice(0, 2)
+          .map((program) => program.title)
+          .join(" / ")}.`
+      );
+    }
+  }
+
+  const subjectTerms = splitPreferenceTerms(
+    [preferenceProfile.subjectAreas, preferenceProfile.researchKeywords]
+      .filter(Boolean)
+      .join(",")
+  );
+  if (subjectTerms.length) {
+    const matchedTerms = findMatchingTerms(subjectTerms, [
+      factText,
+      p.subject ?? "",
+      p.topSubject ?? "",
+      ...Object.keys(p.normalizedInvertedSubjectRanks ?? {})
+    ]);
+    if (matchedTerms.length) {
+      matched.push(`Subject signal found: ${matchedTerms.slice(0, 3).join(", ")}.`);
+    } else {
+      missing.push("Subject or research keywords need validation in faculty/research data.");
+    }
+  }
+
+  if (preferenceProfile.fundingRequirement === "required") {
+    if (/guarantee|guaranteed|support|funding|assistantship|\$/i.test(factText)) {
+      matched.push("Funding evidence exists, but terms still need program-level review.");
+    } else {
+      concerns.push("Funding is required, but no verified funding fact is connected.");
+    }
+  } else if (funding.length) {
+    matched.push("Funding or tuition facts are available for comparison.");
+  }
+
+  if (preferenceProfile.maxTuition.trim()) {
+    if (/\$|tuition|fee/i.test(factText)) {
+      missing.push(`Compare listed tuition/funding amounts against ${preferenceProfile.budgetCurrency} ${preferenceProfile.maxTuition}.`);
+    } else {
+      missing.push("Tuition amount is needed before budget comparison.");
+    }
+  }
+
+  if (preferenceProfile.researchPriority === "high" && !programs.some((program) => /research|thesis|phd/i.test(program.rawLabel))) {
+    missing.push("Research-track strength needs supervisor or thesis-track confirmation.");
+  }
+  if (preferenceProfile.employmentPriority === "high") {
+    missing.push("Employment outcomes or co-op/city job-market notes are not connected yet.");
+  }
+  if (preferenceProfile.immigrationPriority === "high") {
+    missing.push("Immigration pathway notes are not connected yet.");
+  }
+
+  if (decision.keepReason.trim()) {
+    matched.push(`Your keep reason: ${decision.keepReason.trim()}`);
+  }
+  if (decision.rejectReason.trim()) {
+    concerns.push(`Your exclusion concern: ${decision.rejectReason.trim()}`);
+  }
+
+  const uniqueMissing = [...new Set(missing)].slice(0, 5);
+  const uniqueMatched = [...new Set(matched)].slice(0, 5);
+  const uniqueConcerns = [...new Set(concerns)].slice(0, 4);
+
+  const nextAction = decision.nextAction.trim()
+    ? decision.nextAction
+    : uniqueMissing.some((gap) => gap.toLowerCase().includes("deadline"))
+      ? "Open the official admissions page and record the next application deadline."
+      : uniqueConcerns.length
+        ? "Resolve the top concern before moving this school to Shortlist."
+        : uniqueMissing.length
+          ? "Fill the highest-impact missing fact before changing status."
+          : decision.status === "shortlist"
+            ? "Compare this school against two nearby shortlist candidates."
+            : policyResult.nextAction;
+
+  const summary = hasPreferenceProfile(preferenceProfile)
+    ? uniqueConcerns.length
+      ? "This school has usable signals, but at least one preference-sensitive concern needs review."
+      : uniqueMatched.length
+        ? policyResult.summary
+        : "Connected facts are available, but they do not explain fit yet."
+    : "Add a Preference Profile to turn neutral facts into fit, concern, and next-action signals.";
+
+  return {
+    summary,
+    matched: uniqueMatched,
+    concerns: uniqueConcerns,
+    missing: uniqueMissing,
+    nextAction
+  };
+}
+
+function DecisionPanel({
+  feature,
+  preferenceProfile,
+  decision
+}: {
+  feature: RankingFeature;
+  preferenceProfile: PreferenceProfile;
+  decision: SchoolDecision;
+}) {
+  const p = feature.properties;
+  const { facts, loading } = useSchoolDecisionFacts(feature);
+  const programs = facts?.programs ?? [];
+  const funding = facts?.funding ?? [];
+  const interpretation = useMemo(
+    () => buildDecisionInterpretation(feature, facts, preferenceProfile, decision),
+    [feature, facts, preferenceProfile, decision]
+  );
+  const status = getStatusMeta(decision.status);
+
+  return (
+    <div className="tab-panel decision-panel">
+      {loading && <InlineLoading label="Loading decision facts" />}
+
+      <div className="decision-brief">
+        <div>
+          <span>Status</span>
+          <strong>{status.label}</strong>
+        </div>
+        <div>
+          <span>Verified facts</span>
+          <strong>{programs.length + funding.length}</strong>
+        </div>
+        <div>
+          <span>Open gaps</span>
+          <strong>{interpretation.missing.length}</strong>
+        </div>
+      </div>
+
+      <div className="decision-interpretation-card">
+        <div className="decision-interpretation-head">
+          <strong>Preference interpretation</strong>
+          <span>{hasPreferenceProfile(preferenceProfile) ? "Profile-aware" : "Needs profile"}</span>
+        </div>
+        <p>{interpretation.summary}</p>
+        <div className="decision-signal-columns">
+          <DecisionSignalList title="Why it may fit" items={interpretation.matched} empty="No preference match yet." />
+          <DecisionSignalList title="Concerns" items={interpretation.concerns} empty="No concern from connected facts." />
+        </div>
+      </div>
+
+      <div className="decision-next-card">
+        <strong>Next action</strong>
+        <p>{interpretation.nextAction}</p>
+      </div>
+
+      {!loading && programs.length + funding.length === 0 ? (
+        <div className="advisor-empty">
+          <UserRoundSearch size={20} />
+          <p>No verified decision facts linked to {p.universityName} yet.</p>
+        </div>
+      ) : null}
+
+      {programs.length ? (
+        <DecisionFactSection title="Programs" facts={programs} />
+      ) : null}
+
+      {funding.length ? (
+        <DecisionFactSection title="Funding & tuition" facts={funding} />
+      ) : null}
+
+      <div className="decision-gaps-card">
+        <strong>Missing info</strong>
+        {interpretation.missing.length ? (
+          <ul>
+            {interpretation.missing.map((gap) => (
+              <li key={gap}>{gap}</li>
+            ))}
+          </ul>
+        ) : (
+          <p>No blocking gaps from connected facts.</p>
+        )}
+      </div>
+
+      <div className="decision-source-row">
+        <span>{facts?.sourceLabel ?? "Decision facts"}</span>
+        {[...programs, ...funding].slice(0, 2).map((fact) => (
+          <ExternalChip key={fact.id} href={fact.evidenceUrl} label="Source" />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function DecisionSignalList({
+  title,
+  items,
+  empty
+}: {
+  title: string;
+  items: string[];
+  empty: string;
+}) {
+  return (
+    <div className="decision-signal-list">
+      <strong>{title}</strong>
+      {items.length ? (
+        <ul>
+          {items.map((item) => (
+            <li key={item}>{item}</li>
+          ))}
+        </ul>
+      ) : (
+        <p>{empty}</p>
+      )}
+    </div>
+  );
+}
+
+function DecisionFactSection({
+  title,
+  facts
+}: {
+  title: string;
+  facts: SchoolDecisionFact[];
+}) {
+  return (
+    <section className="decision-fact-section">
+      <div className="decision-section-head">
+        <strong>{title}</strong>
+        <span>{facts.length}</span>
+      </div>
+      <div className="decision-fact-list">
+        {facts.map((fact) => (
+          <DecisionFactItem key={fact.id} fact={fact} />
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function DecisionFactItem({ fact }: { fact: SchoolDecisionFact }) {
+  const tags = getDecisionFactTags(fact).slice(0, 4);
+
+  return (
+    <details className="decision-fact">
+      <summary>
+        <div>
+          <strong>{fact.title}</strong>
+          <span>{tags.join(" · ") || "Verified official fact"}</span>
+        </div>
+        <ChevronDown size={16} />
+      </summary>
+      <div className="collapsible-body">
+        <p>{fact.rawLabel}</p>
+        {tags.length ? (
+          <div className="tag-cloud compact-tags">
+            {tags.map((tag) => (
+              <span key={tag}>{tag}</span>
+            ))}
+          </div>
+        ) : null}
+        <div className="decision-fact-actions">
+          <ExternalChip href={fact.evidenceUrl} label="Official source" />
+        </div>
+      </div>
+    </details>
+  );
+}
+
 function RankingsPanel({ feature, mode }: { feature: RankingFeature; mode: Mode }) {
   const p = feature.properties;
   return (
@@ -2514,40 +2956,6 @@ function FacultyPanel({
   return (
     <div className="tab-panel">
       {loading && <InlineLoading label="Loading faculty index" />}
-      <div className="structure-card">
-        <div className="structure-row root">
-          <Building2 size={16} />
-          <div>
-            <strong>{p.universityName}</strong>
-            <span>Institution</span>
-          </div>
-        </div>
-        <div className="structure-row">
-          <span className="structure-node" />
-          <div>
-            <strong>{departments[0]?.facultyName ?? "Faculty / School"}</strong>
-            <span>
-              {summary?.sourceLabel ?? "Faculty index"} for departments, programs, labs, and professor affiliations
-            </span>
-          </div>
-        </div>
-        <div className="structure-row">
-          <span className="structure-node" />
-          <div>
-            <strong>Departments & professor directory</strong>
-            <span>
-              {summary?.totalEntries
-                ? `${summary.totalEntries} people linked across ${departments.length} department groups`
-                : "Use recommendations for professor-level fit and outreach details"}
-            </span>
-          </div>
-        </div>
-        {summary?.sourceUrl && (
-          <div className="structure-actions">
-            <ExternalChip href={summary.sourceUrl} label="Faculty source" />
-          </div>
-        )}
-      </div>
 
       {!loading && departments.length === 0 ? (
         <div className="advisor-empty">
@@ -2563,6 +2971,7 @@ function FacultyPanel({
               key={`${department.facultyName}-${department.name}`}
               feature={feature}
               department={department}
+              defaultOpen={departments.length === 1}
               isFavorite={isFavorite}
               onToggleFavorite={onToggleFavorite}
             />
@@ -2576,16 +2985,18 @@ function FacultyPanel({
 function DepartmentFacultyCard({
   feature,
   department,
+  defaultOpen = false,
   isFavorite,
   onToggleFavorite
 }: {
   feature: RankingFeature;
   department: FacultyDepartmentSummary;
+  defaultOpen?: boolean;
   isFavorite: (kind: FavoriteKind, universityId: number, entityKey: string) => boolean;
   onToggleFavorite: (item: FavoriteItem) => void;
 }) {
   const p = feature.properties;
-  const [isOpen, setIsOpen] = useState(false);
+  const [isOpen, setIsOpen] = useState(defaultOpen);
   const [page, setPage] = useState<FacultyDirectoryPage | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -2630,6 +3041,7 @@ function DepartmentFacultyCard({
 
   return (
     <details
+      open={isOpen}
       className="department-card"
       onToggle={(event) => setIsOpen(event.currentTarget.open)}
     >
@@ -2695,10 +3107,10 @@ function FacultyDirectoryList({
       {!compact && (
         <div className="faculty-directory-head">
           <div>
-            <strong>DIRO professor directory</strong>
-            <span>{total} entries from the department page</span>
+            <strong>{entries[0]?.departmentName ?? "Faculty directory"}</strong>
+            <span>{total} entries from the official directory</span>
           </div>
-          <ExternalChip href={entries[0].sourceUrl} label="DIRO source" />
+          <ExternalChip href={entries[0].sourceUrl} label="Faculty source" />
         </div>
       )}
       <div className="faculty-person-list">
@@ -2745,22 +3157,109 @@ function FacultyDirectoryList({
   );
 }
 
+type DepartmentRecommendation = {
+  id: string;
+  department: FacultyDepartmentSummary;
+  score: number;
+  fit: RecommendationResult;
+  advisorCount: number;
+};
+
+type AdvisorRecommendation = {
+  advisor: AdvisorCard;
+  fit: RecommendationResult;
+};
+
+function buildDepartmentRecommendations(
+  departments: FacultyDepartmentSummary[],
+  advisors: AdvisorCard[],
+  preferenceProfile: PreferenceProfile
+): DepartmentRecommendation[] {
+  const advisorTextByDepartment = new Map<string, string[]>();
+
+  advisors.forEach((advisor) => {
+    const departmentKey = normalizeSignal(advisor.department ?? advisor.institutionName);
+    const values = advisorTextByDepartment.get(departmentKey) ?? [];
+    values.push(
+      [
+        advisor.fullName,
+        advisor.department,
+        advisor.fitSummary,
+        advisor.contactAngle,
+        ...advisor.researchAreas,
+        ...advisor.targetPrograms
+      ]
+        .filter(Boolean)
+        .join(" ")
+    );
+    advisorTextByDepartment.set(departmentKey, values);
+  });
+
+  return departments
+    .map((department) => {
+      const matchingAdvisorTexts = [...advisorTextByDepartment.entries()].filter(
+        ([key, texts]) =>
+          normalizeSignal(department.name).includes(key) ||
+          key.includes(normalizeSignal(department.name)) ||
+          texts.some((text) => textMatchesTerm(text, department.name))
+      );
+      const advisorCount = matchingAdvisorTexts.reduce(
+        (sum, [, texts]) => sum + texts.length,
+        0
+      );
+      const fit = defaultRecommendationPolicy.scoreDepartment(department, preferenceProfile, {
+        advisors
+      });
+
+      return {
+        id: `${department.facultyName}:${department.name}`,
+        department,
+        score: fit.score,
+        fit,
+        advisorCount
+      };
+    })
+    .filter((item) => item.score > 0 || item.fit.matched.length > 0)
+    .sort((a, b) => b.score - a.score || b.department.count - a.department.count)
+    .slice(0, 5);
+}
+
+function buildAdvisorRecommendations(
+  advisors: AdvisorCard[],
+  preferenceProfile: PreferenceProfile
+): AdvisorRecommendation[] {
+  return advisors
+    .map((advisor) => ({
+      advisor,
+      fit: defaultRecommendationPolicy.scoreAdvisor(advisor, preferenceProfile)
+    }))
+    .sort((a, b) => {
+      const priorityA = a.advisor.priorityScore ?? 0;
+      const priorityB = b.advisor.priorityScore ?? 0;
+      return b.fit.score - a.fit.score || priorityB - priorityA || a.advisor.fullName.localeCompare(b.advisor.fullName);
+    });
+}
+
 function RecommendationsPanel({
   feature,
+  preferenceProfile,
   isFavorite,
   onToggleFavorite
 }: {
   feature: RankingFeature;
+  preferenceProfile: PreferenceProfile;
   isFavorite: (kind: FavoriteKind, universityId: number, entityKey: string) => boolean;
   onToggleFavorite: (item: FavoriteItem) => void;
 }) {
   const p = feature.properties;
   const [advisors, setAdvisors] = useState<AdvisorCard[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [summary, setSummary] = useState<FacultyDirectorySummary | null>(null);
+  const [loadingAdvisors, setLoadingAdvisors] = useState(true);
+  const [loadingDepartments, setLoadingDepartments] = useState(true);
 
   useEffect(() => {
     let isActive = true;
-    setLoading(true);
+    setLoadingAdvisors(true);
     api
       .getAdvisorCards(p.universityName)
       .then((items) => {
@@ -2770,7 +3269,7 @@ function RecommendationsPanel({
         if (isActive && err.name !== "AbortError") setAdvisors([]);
       })
       .finally(() => {
-        if (isActive) setLoading(false);
+        if (isActive) setLoadingAdvisors(false);
       });
 
     return () => {
@@ -2778,37 +3277,195 @@ function RecommendationsPanel({
     };
   }, [p.universityName]);
 
+  useEffect(() => {
+    const controller = new AbortController();
+    setLoadingDepartments(true);
+    api
+      .getFacultyDirectorySummary(p.universityName, controller.signal)
+      .then(setSummary)
+      .catch((err) => {
+        if (err.name !== "AbortError") setSummary(null);
+      })
+      .finally(() => setLoadingDepartments(false));
+
+    return () => controller.abort();
+  }, [p.universityName]);
+
+  const departmentRecommendations = useMemo(
+    () => buildDepartmentRecommendations(summary?.departments ?? [], advisors, preferenceProfile),
+    [advisors, preferenceProfile, summary]
+  );
+  const advisorRecommendations = useMemo(
+    () => buildAdvisorRecommendations(advisors, preferenceProfile),
+    [advisors, preferenceProfile]
+  );
+  const loading = loadingAdvisors || loadingDepartments;
+
   return (
     <div className="tab-panel">
       {loading && <InlineLoading label="Loading recommendations" />}
-      {!loading && advisors.length === 0 ? (
-        <div className="advisor-empty">
-          <UserRoundSearch size={20} />
-          <p>No advisor recommendations linked to this university yet.</p>
+      <RecommendationSection
+        title="Recommended departments"
+        count={departmentRecommendations.length}
+      >
+        {departmentRecommendations.length ? (
+          <div className="recommended-department-list">
+            {departmentRecommendations.map((recommendation) => (
+              <RecommendedDepartmentCard
+                key={recommendation.id}
+                recommendation={recommendation}
+                feature={feature}
+                isFavorite={isFavorite}
+                onToggleFavorite={onToggleFavorite}
+              />
+            ))}
+          </div>
+        ) : (
+          <div className="advisor-empty">
+            <UserRoundSearch size={20} />
+            <p>No department recommendation yet. Add subject or research keywords in Prefs.</p>
+          </div>
+        )}
+      </RecommendationSection>
+
+      <RecommendationSection title="Recommended advisors" count={advisorRecommendations.length}>
+        {!loading && advisors.length === 0 ? (
+          <div className="advisor-empty">
+            <UserRoundSearch size={20} />
+            <p>No advisor recommendations linked to this university yet.</p>
+          </div>
+        ) : null}
+        <div className="advisor-list">
+          {advisorRecommendations.map(({ advisor, fit }) => (
+            <AdvisorItem
+              key={advisor.id}
+              advisor={advisor}
+              fit={fit}
+              feature={feature}
+              isFavorite={isFavorite}
+              onToggleFavorite={onToggleFavorite}
+            />
+          ))}
         </div>
-      ) : null}
-      <div className="advisor-list">
-        {advisors.map((advisor) => (
-          <AdvisorItem
-            key={advisor.id}
-            advisor={advisor}
-            feature={feature}
-            isFavorite={isFavorite}
-            onToggleFavorite={onToggleFavorite}
-          />
-        ))}
+      </RecommendationSection>
+    </div>
+  );
+}
+
+function RecommendationSection({
+  title,
+  count,
+  children
+}: {
+  title: string;
+  count: number;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="recommendation-section">
+      <div className="recommendation-section-head">
+        <strong>{title}</strong>
+        <span>{count}</span>
       </div>
+      {children}
+    </section>
+  );
+}
+
+function RecommendedDepartmentCard({
+  recommendation,
+  feature,
+  isFavorite,
+  onToggleFavorite
+}: {
+  recommendation: DepartmentRecommendation;
+  feature: RankingFeature;
+  isFavorite: (kind: FavoriteKind, universityId: number, entityKey: string) => boolean;
+  onToggleFavorite: (item: FavoriteItem) => void;
+}) {
+  const p = feature.properties;
+  const department = recommendation.department;
+  const favoriteKey = recommendation.id;
+  const favorite = createFavoriteItem(feature, "subject", department.name, favoriteKey);
+  const fit = recommendation.fit;
+
+  return (
+    <details className="recommended-department-card">
+      <summary>
+        <div>
+          <strong>{department.name}</strong>
+          <span>{department.facultyName}</span>
+        </div>
+        <em className={`recommendation-badge recommendation-${fit.level}`}>{fit.label}</em>
+        <FavoriteButton
+          active={isFavorite("subject", p.universityId, favoriteKey)}
+          label="部门"
+          onClick={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            onToggleFavorite(favorite);
+          }}
+        />
+      </summary>
+      <div className="collapsible-body">
+        <div className="recommendation-metrics">
+          <Fact label="People" value={department.count} />
+          <Fact label="Advisors" value={recommendation.advisorCount} />
+        </div>
+        <p className="recommendation-summary">{fit.summary}</p>
+        <RecommendationEvidence title="Why it fits" items={fit.matched} empty="No direct fit signal yet." />
+        <RecommendationEvidence title="Concerns" items={fit.concerns} empty="No major concern from connected data." />
+        <RecommendationEvidence title="Missing info" items={fit.missing} empty="No blocking missing info." />
+        <div className="recommendation-next">
+          <strong>Next</strong>
+          <span>{fit.nextAction}</span>
+        </div>
+        {department.expertise.length ? (
+          <div className="tag-cloud compact-tags">
+            {department.expertise.slice(0, 5).map((area) => (
+              <span key={area}>{area}</span>
+            ))}
+          </div>
+        ) : null}
+      </div>
+    </details>
+  );
+}
+
+function RecommendationEvidence({
+  title,
+  items,
+  empty
+}: {
+  title: string;
+  items: string[];
+  empty: string;
+}) {
+  return (
+    <div className="recommendation-evidence">
+      <h4>{title}</h4>
+      {items.length ? (
+        <ul className="recommendation-reasons">
+          {items.slice(0, 3).map((item) => (
+            <li key={item}>{item}</li>
+          ))}
+        </ul>
+      ) : (
+        <p>{empty}</p>
+      )}
     </div>
   );
 }
 
 function AdvisorItem({
   advisor,
+  fit,
   feature,
   isFavorite,
   onToggleFavorite
 }: {
   advisor: AdvisorCard;
+  fit: RecommendationResult;
   feature: RankingFeature;
   isFavorite: (kind: FavoriteKind, universityId: number, entityKey: string) => boolean;
   onToggleFavorite: (item: FavoriteItem) => void;
@@ -2825,11 +3482,18 @@ function AdvisorItem({
               advisor.institutionName}
           </span>
         </div>
-        {advisor.priority && <em>{advisor.priority}</em>}
+        <em className={`recommendation-badge recommendation-${fit.level}`}>{fit.label}</em>
       </summary>
 
       <div className="collapsible-body">
-        <p>{advisor.fitSummary}</p>
+        <p>{fit.summary}</p>
+        <RecommendationEvidence title="Why it fits" items={fit.matched} empty={advisor.fitSummary} />
+        <RecommendationEvidence title="Concerns" items={fit.concerns} empty="No major concern from connected data." />
+        <RecommendationEvidence title="Missing info" items={fit.missing} empty="No blocking missing info." />
+        <div className="recommendation-next">
+          <strong>Next</strong>
+          <span>{fit.nextAction}</span>
+        </div>
 
         {advisor.researchAreas.length ? (
           <div className="tag-cloud compact-tags">

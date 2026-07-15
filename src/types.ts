@@ -24,6 +24,8 @@ export type RankingProperties = {
   sourceName: string;
   sourceUrl: string;
   attribution: string;
+  overallScore?: number;
+  locationQuality?: "matched" | "city" | "geocoded-city" | "missing";
   topSubject?: string;
   topSubjectRankValue?: number;
   topSubjectSourceRankValue?: string;
@@ -65,6 +67,31 @@ export type OpenDataProfile = {
   topics: Array<{ name: string; count?: number; share?: number }>;
   relatedInstitutions: Array<{ name: string; relationship?: string }>;
   message?: string;
+};
+
+export type PriorityLevel = "low" | "medium" | "high";
+
+export type PreferenceProfile = {
+  schemaVersion: 1;
+  updatedAt: string;
+  degreeLevel: string;
+  targetCountries: string;
+  targetCities: string;
+  budgetCurrency: string;
+  maxTuition: string;
+  fundingRequirement: string;
+  subjectAreas: string;
+  researchKeywords: string;
+  gpa: string;
+  languageScores: string;
+  background: string;
+  employmentPriority: PriorityLevel;
+  researchPriority: PriorityLevel;
+  immigrationPriority: PriorityLevel;
+  acceptsSmallCities: boolean;
+  acceptsCourseBased: boolean;
+  acceptsNichePrograms: boolean;
+  notes: string;
 };
 
 export type AdvisorCard = {
@@ -125,4 +152,31 @@ export type FacultyDirectoryPage = {
   limit: number;
   hasMore: boolean;
   sourceUrl?: string;
+};
+
+export type SchoolDecisionFactType = "program" | "tuition_funding";
+
+export type SchoolDecisionFact = {
+  id: string;
+  institutionName: string;
+  recordType: SchoolDecisionFactType;
+  title: string;
+  degreeLevel?: string;
+  topic?: string;
+  department?: string;
+  duration?: string;
+  programFormat?: string;
+  amounts: string[];
+  rawLabel: string;
+  evidenceUrl: string;
+  sourceUrl: string;
+  confidence?: number;
+  verifiedAt?: string;
+};
+
+export type SchoolDecisionFacts = {
+  universityName: string;
+  sourceLabel: string;
+  programs: SchoolDecisionFact[];
+  funding: SchoolDecisionFact[];
 };

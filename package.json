@@ -6,7 +6,9 @@
   "scripts": {
     "dev": "vite --host 0.0.0.0",
     "build": "tsc -b && vite build",
-    "preview": "vite preview --host 0.0.0.0"
+    "preview": "vite preview --host 0.0.0.0",
+    "test:recommendations": "rm -rf .tmp-recommendation-tests && tsc --module ES2022 --moduleResolution Bundler --target ES2022 --lib ES2022,DOM --strict --esModuleInterop --skipLibCheck --resolveJsonModule --outDir .tmp-recommendation-tests --rootDir . --noEmit false tests/recommendationPolicy.test.ts src/recommendationPolicy.ts src/types.ts && node --experimental-specifier-resolution=node .tmp-recommendation-tests/tests/recommendationPolicy.test.js",
+    "test:local-rankings": "node tests/localRankings.test.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.106.2",

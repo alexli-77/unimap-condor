@@ -13,6 +13,7 @@ vite.config.d.ts
 *.mobileprovision
 .DS_Store
 coverage/
+.tmp-recommendation-tests/
 __pycache__/
 *.py[cod]
 tools/intake/scrapy/.venv/

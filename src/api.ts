@@ -6,12 +6,21 @@ import type {
   FacultyDirectorySummary,
   OpenDataProfile,
   RankingFeatureCollection,
+  SchoolDecisionFact,
+  SchoolDecisionFacts,
   Source,
   SourceAvailability,
   UniversityDetail
 } from "./types";
+import { localDecisionFacts } from "./localDecisionFacts";
 import { localFacultyDirectory } from "./localFacultyDirectory";
 import { localAdvisorCards } from "./localAdvisors";
+import {
+  getLocalRankingCollection,
+  getLocalUniversityDetail,
+  mergeLocalAvailabilities,
+  mergeLocalUniversityDetail
+} from "./localRankings";
 import { supabase } from "./supabase";
 
 const responseCache = new Map<string, unknown>();
@@ -22,6 +31,7 @@ const advisorCache = new Map<string, AdvisorCard[]>();
 const facultyDirectoryCache = new Map<string, FacultyDirectoryEntry[]>();
 const facultySummaryCache = new Map<string, FacultyDirectorySummary>();
 const facultyPageCache = new Map<string, FacultyDirectoryPage>();
+const decisionFactsCache = new Map<string, SchoolDecisionFacts>();
 
 async function request<T>(path: string, signal?: AbortSignal): Promise<T> {
   if (responseCache.has(path)) {
@@ -116,6 +126,12 @@ function directoryEntryMatchesUniversity(
   });
 }
 
+function decisionFactMatchesUniversity(fact: SchoolDecisionFact, universityName: string) {
+  const selected = normalizeName(universityName);
+  const institution = normalizeName(fact.institutionName);
+  return selected.includes(institution) || institution.includes(selected);
+}
+
 function mapAdvisorRow(row: any): AdvisorCard {
   return {
     id: String(row.id),
@@ -168,7 +184,8 @@ function buildFacultySummary(
 
   entries.forEach((entry) => {
     const name = entry.departmentName || "Academic department";
-    const current = departments.get(name) ?? {
+    const key = `${entry.facultyName || "Faculty / School"}::${name}`;
+    const current = departments.get(key) ?? {
       name,
       facultyName: entry.facultyName,
       count: 0,
@@ -178,7 +195,7 @@ function buildFacultySummary(
     current.count += 1;
     current.expertise = uniq([...current.expertise, ...entry.expertise]).slice(0, 8);
     current.roles = uniq([...current.roles, entry.role]).slice(0, 6);
-    departments.set(name, current);
+    departments.set(key, current);
   });
 
   return {
@@ -236,6 +253,89 @@ function mapDepartmentSummaryRow(row: any): FacultyDepartmentSummary {
     expertise: Array.isArray(row.research_areas) ? row.research_areas.slice(0, 8) : [],
     roles: Array.isArray(row.roles) ? row.roles.slice(0, 6) : []
   };
+}
+
+function mapDecisionFactRow(row: any): SchoolDecisionFact {
+  const fact = row.fact_json ?? row.extracted_json ?? {};
+  const amounts = Array.isArray(row.amounts)
+    ? row.amounts
+    : Array.isArray(fact.amounts)
+      ? fact.amounts
+      : [];
+
+  return {
+    id: String(row.id ?? row.record_key ?? row.title),
+    institutionName: row.institution_name ?? "",
+    recordType: row.record_type,
+    title: row.title ?? fact.name ?? fact.topic ?? "Verified fact",
+    degreeLevel: row.degree_level ?? fact.degree_level ?? undefined,
+    topic: row.topic ?? fact.topic ?? undefined,
+    department: row.department ?? fact.department ?? undefined,
+    duration: row.duration ?? fact.duration ?? undefined,
+    programFormat: row.program_format ?? fact.program_format ?? undefined,
+    amounts,
+    rawLabel: row.raw_label ?? fact.raw_label ?? "",
+    evidenceUrl: row.evidence_url ?? fact.evidence_url ?? row.source_url ?? "",
+    sourceUrl: row.source_url ?? fact.evidence_url ?? "",
+    confidence: row.confidence ? Number(row.confidence) : undefined,
+    verifiedAt: row.verified_at ?? undefined
+  };
+}
+
+function buildDecisionFacts(
+  universityName: string,
+  facts: SchoolDecisionFact[],
+  sourceLabel: string
+): SchoolDecisionFacts {
+  const matchingFacts = facts.filter((fact) =>
+    decisionFactMatchesUniversity(fact, universityName)
+  );
+  return {
+    universityName,
+    sourceLabel,
+    programs: matchingFacts.filter((fact) => fact.recordType === "program"),
+    funding: matchingFacts.filter((fact) => fact.recordType === "tuition_funding")
+  };
+}
+
+async function getSchoolDecisionFacts(
+  universityName: string,
+  signal?: AbortSignal
+): Promise<SchoolDecisionFacts> {
+  const cacheKey = normalizeName(universityName);
+  if (!signal && decisionFactsCache.has(cacheKey)) {
+    return decisionFactsCache.get(cacheKey)!;
+  }
+
+  if (supabase) {
+    try {
+      const query = supabase
+        .from("university_decision_facts_public")
+        .select("*")
+        .ilike("institution_name", `%${universityName}%`)
+        .order("record_type", { ascending: true })
+        .order("title", { ascending: true });
+
+      const { data, error } = await (signal ? query.abortSignal(signal) : query);
+      if (error) throw error;
+
+      if (data?.length) {
+        const facts = buildDecisionFacts(
+          universityName,
+          data.map(mapDecisionFactRow),
+          "Verified decision facts"
+        );
+        if (!signal) decisionFactsCache.set(cacheKey, facts);
+        return facts;
+      }
+    } catch (error) {
+      console.warn("Falling back to local decision facts", error);
+    }
+  }
+
+  const facts = buildDecisionFacts(universityName, localDecisionFacts, "Local verified facts");
+  if (!signal) decisionFactsCache.set(cacheKey, facts);
+  return facts;
 }
 
 async function getFacultyDirectorySummary(
@@ -461,21 +561,33 @@ async function getOpenDataProfile(
 }
 
 export const api = {
-  getAvailabilities: (signal?: AbortSignal) =>
-    request<SourceAvailability[]>("/sources/availabilities", signal),
+  getAvailabilities: async (signal?: AbortSignal) => {
+    try {
+      return mergeLocalAvailabilities(
+        await request<SourceAvailability[]>("/sources/availabilities", signal)
+      );
+    } catch (error) {
+      if ((error as Error).name === "AbortError") throw error;
+      return mergeLocalAvailabilities([]);
+    }
+  },
   getSources: (signal?: AbortSignal) => request<Source[]>("/sources", signal),
   getRankings: (
     source: string,
     year: string,
     subject: string,
     signal?: AbortSignal
-  ) =>
-    request<RankingFeatureCollection>(
+  ) => {
+    const localCollection = getLocalRankingCollection(source, year, subject);
+    if (localCollection) return Promise.resolve(localCollection);
+
+    return request<RankingFeatureCollection>(
       `/rankings?source=${encodeURIComponent(source)}&year=${encodeURIComponent(
         year
       )}&subject=${encodeURIComponent(subject)}`,
       signal
-    ),
+    );
+  },
   getSubjectScores: (source: string, year: string, signal?: AbortSignal) =>
     request<RankingFeatureCollection>(
       `/rankings/subject-scores?source=${encodeURIComponent(
@@ -487,13 +599,23 @@ export const api = {
     if (universityCache.has(id)) {
       return universityCache.get(id)!;
     }
-    const detail = await request<UniversityDetail>(`/universities/${id}/rankings`, signal);
-    universityCache.set(id, detail);
-    return detail;
+    try {
+      const detail = mergeLocalUniversityDetail(
+        await request<UniversityDetail>(`/universities/${id}/rankings`, signal)
+      );
+      universityCache.set(id, detail);
+      return detail;
+    } catch (error) {
+      const localDetail = getLocalUniversityDetail(id);
+      if (!localDetail) throw error;
+      universityCache.set(id, localDetail);
+      return localDetail;
+    }
   },
   getOpenDataProfile,
   getAdvisorCards,
   getFacultyDirectoryEntries,
   getFacultyDirectorySummary,
-  getFacultyDirectoryPage
+  getFacultyDirectoryPage,
+  getSchoolDecisionFacts
 };

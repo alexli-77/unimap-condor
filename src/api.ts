@@ -30,6 +30,26 @@ const facultySummaryCache = new Map<string, FacultyDirectorySummary>();
 const facultyPageCache = new Map<string, FacultyDirectoryPage>();
 const decisionFactsCache = new Map<string, SchoolDecisionFacts>();
 
+export type DataSource = "remote" | "local";
+
+const dataSourceListeners = new Set<(source: DataSource) => void>();
+
+/**
+ * Subscribe to data-source changes. Fires "local" whenever the app serves
+ * bundled/offline data (either the default local dataset or a remote fallback)
+ * and "remote" when live data is returned. Returns an unsubscribe function.
+ */
+export function onDataSourceChange(listener: (source: DataSource) => void) {
+  dataSourceListeners.add(listener);
+  return () => {
+    dataSourceListeners.delete(listener);
+  };
+}
+
+function reportDataSource(source: DataSource) {
+  dataSourceListeners.forEach((listener) => listener(source));
+}
+
 async function request<T>(path: string, signal?: AbortSignal): Promise<T> {
   if (responseCache.has(path)) {
     return responseCache.get(path) as T;
@@ -563,11 +583,14 @@ async function getOpenDataProfile(
 export const api = {
   getAvailabilities: async (signal?: AbortSignal) => {
     try {
-      return mergeLocalAvailabilities(
+      const availabilities = mergeLocalAvailabilities(
         await request<SourceAvailability[]>("/sources/availabilities", signal)
       );
+      reportDataSource("remote");
+      return availabilities;
     } catch (error) {
       if ((error as Error).name === "AbortError") throw error;
+      reportDataSource("local");
       return mergeLocalAvailabilities([]);
     }
   },
@@ -579,14 +602,19 @@ export const api = {
     signal?: AbortSignal
   ) => {
     const localCollection = await getLocalRankingCollection(source, year, subject);
-    if (localCollection) return localCollection;
+    if (localCollection) {
+      reportDataSource("local");
+      return localCollection;
+    }
 
-    return request<RankingFeatureCollection>(
+    const remoteCollection = await request<RankingFeatureCollection>(
       `/rankings?source=${encodeURIComponent(source)}&year=${encodeURIComponent(
         year
       )}&subject=${encodeURIComponent(subject)}`,
       signal
     );
+    reportDataSource("remote");
+    return remoteCollection;
   },
   getSubjectScores: (source: string, year: string, signal?: AbortSignal) =>
     request<RankingFeatureCollection>(

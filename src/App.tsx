@@ -19,7 +19,7 @@ import {
 } from "lucide-react";
 import maplibregl, { Map as MapLibreMap } from "maplibre-gl";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { api } from "./api";
+import { api, onDataSourceChange, type DataSource } from "./api";
 import mascotLogo from "../docs/assets/mascot.webp";
 import {
   defaultRecommendationPolicy,
@@ -793,7 +793,10 @@ export function App() {
   const [workspaceMessage, setWorkspaceMessage] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [dataSource, setDataSource] = useState<DataSource | null>(null);
   const debouncedQuery = useDebouncedValue(query);
+
+  useEffect(() => onDataSourceChange(setDataSource), []);
 
   useEffect(() => {
     localStorage.setItem(favoritesStorageKey, JSON.stringify(favorites));
@@ -1254,6 +1257,12 @@ export function App() {
         )}
 
         <section className="map-stage">
+          {dataSource === "local" && (
+            <div className="banner data-source" title="Showing bundled offline data">
+              <Layers3 size={14} />
+              Local data
+            </div>
+          )}
           {error && <div className="banner error">{error}</div>}
           {loading && (
             <div className="banner loading">

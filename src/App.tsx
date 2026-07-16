@@ -8,6 +8,7 @@ import {
   SlidersHorizontal,
   Sparkles,
   Star,
+  UserCircle2,
   X
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -22,6 +23,8 @@ import { SavedPanel } from "./components/panels/SavedPanel";
 import { ViewPanel } from "./components/panels/ViewPanel";
 import { PreferenceDialog } from "./components/preference/PreferenceDialog";
 import { ProUpgradeCard } from "./components/ProUpgradeCard";
+import { AuthDialog } from "./components/auth/AuthDialog";
+import { useAuth } from "./state/authContext";
 import { useDebouncedValue } from "./hooks/useDebouncedValue";
 import { buildShortlistHtml } from "./exportShortlist";
 import { canAddCompareSchool, upgradeCopy } from "./entitlements";
@@ -63,7 +66,9 @@ export function App() {
     openProCard,
     closeProCard
   } = useWorkspace();
+  const { isConfigured: isAuthConfigured, user } = useAuth();
 
+  const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [availabilities, setAvailabilities] = useState<SourceAvailability[]>([]);
   const [source, setSource] = useState("");
   const [year, setYear] = useState("");
@@ -396,6 +401,24 @@ export function App() {
             </span>
             <span>Guide</span>
           </button>
+          <button
+            className={`map-nav-item ${user ? "active" : ""}`}
+            type="button"
+            aria-pressed={isAuthOpen}
+            onClick={() => setIsAuthOpen(true)}
+            title={
+              isAuthConfigured
+                ? user
+                  ? `Signed in as ${user.email}`
+                  : "Sign in to sync your workspace"
+                : "Cloud sync not configured"
+            }
+          >
+            <span className="map-nav-icon">
+              <UserCircle2 size={25} />
+            </span>
+            <span>{user ? "Account" : "Sign in"}</span>
+          </button>
         </aside>
 
         {isConfigOpen && (
@@ -414,6 +437,8 @@ export function App() {
         )}
 
         {isProCardOpen && <ProUpgradeCard onClose={closeProCard} />}
+
+        {isAuthOpen && <AuthDialog onClose={() => setIsAuthOpen(false)} />}
 
         {activeLeftPanel && (
           <div className="drawer-shell">

@@ -4,14 +4,17 @@ import "maplibre-gl/dist/maplibre-gl.css";
 import "./styles.css";
 import { App } from "./App";
 import { ErrorBoundary } from "./components/ErrorBoundary";
+import { AuthProvider } from "./state/authContext";
 import { WorkspaceProvider } from "./state/workspaceContext";
 
 createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <ErrorBoundary>
-      <WorkspaceProvider>
-        <App />
-      </WorkspaceProvider>
+      <AuthProvider>
+        <WorkspaceProvider>
+          <App />
+        </WorkspaceProvider>
+      </AuthProvider>
     </ErrorBoundary>
   </React.StrictMode>
 );

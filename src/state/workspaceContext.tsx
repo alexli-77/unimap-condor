@@ -4,6 +4,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState
 } from "react";
 import type { PreferenceProfile, RankingFeature } from "../types";
@@ -19,6 +20,11 @@ import {
   proStorageKey,
   schoolDecisionsStorageKey
 } from "../workspace/constants";
+import { supabase } from "../supabase";
+import { useAuth } from "./authContext";
+import { SupabaseWorkspacePersistence } from "./persistence/supabaseAdapter";
+import { mergeSnapshots } from "./persistence/merge";
+import type { WorkspaceSnapshot } from "./persistence/types";
 import {
   createFavoriteItem,
   getDefaultSchoolDecision,
@@ -82,15 +88,18 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
     loadPreferenceProfile()
   );
 
-  // v1.1 soft paywall. `isPro` is seeded from the `unimap.pro` localStorage
-  // placeholder — a manual dev/preview switch, NOT a purchase path. LEO-196 will
-  // replace this initializer with real subscription state (account entitlement /
-  // Lemon Squeezy). Keep the rest of the provider reading `isPro` so only this
-  // line changes when the real driver lands.
-  const [isPro] = useState<boolean>(() => {
+  const { user, subscriptionPro } = useAuth();
+
+  // Subscription-driven Pro. Logged in -> the entitlement resolved from the
+  // user's Lemon Squeezy subscription row (see authContext / subscription.ts).
+  // Logged out -> the `unimap.pro` localStorage switch, retained as a manual
+  // dev/preview backdoor (NOT a purchase path) so the offline experience is
+  // unchanged. A signed-in user is never Pro via the backdoor.
+  const [devPro] = useState<boolean>(() => {
     if (typeof window === "undefined") return false;
     return localStorage.getItem(proStorageKey) === "true";
   });
+  const isPro = user ? subscriptionPro : devPro;
   const [upgradeHint, setUpgradeHint] = useState("");
   const [isProCardOpen, setIsProCardOpen] = useState(false);
 
@@ -112,6 +121,104 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     localStorage.setItem(schoolDecisionsStorageKey, JSON.stringify(schoolDecisions));
   }, [schoolDecisions]);
+
+  // --- LEO-196 cloud sync ---
+  // localStorage above stays the always-on optimistic cache. When a Supabase
+  // session is present we additionally mirror the workspace to the per-user
+  // cloud tables through the Supabase persistence adapter. Logged out /
+  // unconfigured, none of this runs and behaviour is unchanged.
+  const cloudAdapterRef = useRef<SupabaseWorkspacePersistence | null>(null);
+  const syncedUserRef = useRef<string | null>(null);
+  const [cloudReady, setCloudReady] = useState(false);
+
+  // Keep the latest local snapshot in a ref so the login effect can merge the
+  // exact current data without re-running on every workspace edit.
+  const snapshotRef = useRef<WorkspaceSnapshot>({
+    favorites,
+    schoolDecisions,
+    preferenceProfile
+  });
+  useEffect(() => {
+    snapshotRef.current = { favorites, schoolDecisions, preferenceProfile };
+  }, [favorites, schoolDecisions, preferenceProfile]);
+
+  useEffect(() => {
+    if (!supabase || !user) {
+      // Logged out / unconfigured: drop back to local-only mode.
+      cloudAdapterRef.current = null;
+      syncedUserRef.current = null;
+      setCloudReady(false);
+      return;
+    }
+    if (syncedUserRef.current === user.id) return;
+    syncedUserRef.current = user.id;
+
+    const adapter = new SupabaseWorkspacePersistence(supabase, user.id);
+    cloudAdapterRef.current = adapter;
+    let active = true;
+
+    (async () => {
+      try {
+        const local = snapshotRef.current;
+        const remote = await adapter.load();
+        // First login: union local + cloud, local-newer-wins on conflicts.
+        const merged = mergeSnapshots(local, remote);
+        if (!active) return;
+
+        setFavorites(merged.favorites);
+        setSchoolDecisions(merged.schoolDecisions);
+        setPreferenceProfile(merged.preferenceProfile);
+        localStorage.setItem(favoritesStorageKey, JSON.stringify(merged.favorites));
+        localStorage.setItem(
+          schoolDecisionsStorageKey,
+          JSON.stringify(merged.schoolDecisions)
+        );
+        localStorage.setItem(
+          preferenceStorageKey,
+          JSON.stringify(merged.preferenceProfile)
+        );
+
+        // Push the union back up so the cloud reflects the merged result.
+        await Promise.all([
+          adapter.saveFavorites(merged.favorites),
+          adapter.saveSchoolDecisions(merged.schoolDecisions),
+          adapter.savePreferenceProfile(merged.preferenceProfile)
+        ]);
+        if (active) setCloudReady(true);
+      } catch (error) {
+        // Cloud unavailable: keep serving the local cache silently.
+        console.warn("Cloud sync unavailable; staying on local cache", error);
+        syncedUserRef.current = null;
+      }
+    })();
+
+    return () => {
+      active = false;
+    };
+  }, [user]);
+
+  // Ongoing mirror: once the initial merge is done, push each collection to the
+  // cloud when it changes. Fire-and-forget on top of optimistic local state.
+  useEffect(() => {
+    if (!cloudReady) return;
+    cloudAdapterRef.current
+      ?.saveFavorites(favorites)
+      .catch((error) => console.warn("Failed to sync favorites", error));
+  }, [favorites, cloudReady]);
+
+  useEffect(() => {
+    if (!cloudReady) return;
+    cloudAdapterRef.current
+      ?.saveSchoolDecisions(schoolDecisions)
+      .catch((error) => console.warn("Failed to sync school decisions", error));
+  }, [schoolDecisions, cloudReady]);
+
+  useEffect(() => {
+    if (!cloudReady) return;
+    cloudAdapterRef.current
+      ?.savePreferenceProfile(preferenceProfile)
+      .catch((error) => console.warn("Failed to sync preference profile", error));
+  }, [preferenceProfile, cloudReady]);
 
   const toggleFavorite = useCallback(
     (item: FavoriteItem) => {

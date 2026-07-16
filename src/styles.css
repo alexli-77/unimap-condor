@@ -957,6 +957,72 @@ textarea:focus {
   line-height: 1.4;
 }
 
+.pro-manage-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  justify-self: start;
+  color: #1f4f7a;
+  font-size: 12.5px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.pro-manage-link:hover {
+  text-decoration: underline;
+}
+
+.auth-card {
+  width: min(400px, 100%);
+}
+
+.auth-note {
+  margin: 0;
+  color: #4a5568;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.auth-signed-in {
+  display: grid;
+  gap: 12px;
+}
+
+.auth-signed-in .ghost-button {
+  justify-self: start;
+  padding: 0 14px;
+}
+
+.auth-form {
+  display: grid;
+  gap: 12px;
+}
+
+.auth-field {
+  display: grid;
+  gap: 5px;
+  font-size: 12.5px;
+  color: #4a5568;
+}
+
+.auth-field input {
+  min-height: 38px;
+  padding: 0 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 7px;
+  font-size: 14px;
+}
+
+.auth-form .primary-button {
+  min-height: 38px;
+}
+
+.auth-error {
+  margin: 0;
+  color: #b91c1c;
+  font-size: 12.5px;
+}
+
 .saved-list {
   display: grid;
   gap: 8px;

@@ -8,8 +8,15 @@ import {
 } from "react";
 import type { PreferenceProfile, RankingFeature } from "../types";
 import {
+  canSaveSchool,
+  getEntitlements,
+  upgradeCopy,
+  type Entitlements
+} from "../entitlements";
+import {
   favoritesStorageKey,
   preferenceStorageKey,
+  proStorageKey,
   schoolDecisionsStorageKey
 } from "../workspace/constants";
 import {
@@ -41,6 +48,19 @@ export type WorkspaceContextValue = {
   persistPreferenceProfile: (profile: PreferenceProfile) => PreferenceProfile;
   applyWorkspaceBackup: (backup: WorkspaceBackup) => void;
   buildWorkspaceBackup: () => WorkspaceBackup;
+  // --- v1.1 soft paywall ---
+  isPro: boolean;
+  entitlements: Entitlements;
+  savedSchoolCount: number;
+  // Transient upgrade nudge (inline/toast, never a modal). Touchpoints call
+  // showUpgradeHint when a Free cap is hit; the shell renders it and clears it.
+  upgradeHint: string;
+  showUpgradeHint: (message: string) => void;
+  dismissUpgradeHint: () => void;
+  // The lightweight Pro intro card (benefit list + "coming soon" subscribe).
+  isProCardOpen: boolean;
+  openProCard: () => void;
+  closeProCard: () => void;
 };
 
 const WorkspaceContext = createContext<WorkspaceContextValue | null>(null);
@@ -62,6 +82,29 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
     loadPreferenceProfile()
   );
 
+  // v1.1 soft paywall. `isPro` is seeded from the `unimap.pro` localStorage
+  // placeholder — a manual dev/preview switch, NOT a purchase path. LEO-196 will
+  // replace this initializer with real subscription state (account entitlement /
+  // Lemon Squeezy). Keep the rest of the provider reading `isPro` so only this
+  // line changes when the real driver lands.
+  const [isPro] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    return localStorage.getItem(proStorageKey) === "true";
+  });
+  const [upgradeHint, setUpgradeHint] = useState("");
+  const [isProCardOpen, setIsProCardOpen] = useState(false);
+
+  const entitlements = useMemo(() => getEntitlements(isPro), [isPro]);
+  const savedSchoolCount = useMemo(
+    () => favorites.filter((favorite) => favorite.kind === "school").length,
+    [favorites]
+  );
+
+  const showUpgradeHint = useCallback((message: string) => setUpgradeHint(message), []);
+  const dismissUpgradeHint = useCallback(() => setUpgradeHint(""), []);
+  const openProCard = useCallback(() => setIsProCardOpen(true), []);
+  const closeProCard = useCallback(() => setIsProCardOpen(false), []);
+
   useEffect(() => {
     localStorage.setItem(favoritesStorageKey, JSON.stringify(favorites));
   }, [favorites]);
@@ -70,18 +113,39 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem(schoolDecisionsStorageKey, JSON.stringify(schoolDecisions));
   }, [schoolDecisions]);
 
-  const toggleFavorite = useCallback((item: FavoriteItem) => {
-    setFavorites((current) =>
-      current.some((favorite) => favorite.id === item.id)
-        ? current.filter((favorite) => favorite.id !== item.id)
-        : [...current, item]
-    );
-  }, []);
+  const toggleFavorite = useCallback(
+    (item: FavoriteItem) => {
+      const alreadySaved = favorites.some((favorite) => favorite.id === item.id);
+      // Soft paywall: only a *new* school favorite past the Free cap is blocked.
+      // Removing a favorite, and saving subjects/advisors, are never gated.
+      if (!alreadySaved && item.kind === "school") {
+        if (!canSaveSchool(entitlements, savedSchoolCount)) {
+          showUpgradeHint(upgradeCopy.savedSchoolsCap);
+          return;
+        }
+      }
+      setFavorites((current) =>
+        current.some((favorite) => favorite.id === item.id)
+          ? current.filter((favorite) => favorite.id !== item.id)
+          : [...current, item]
+      );
+    },
+    [favorites, entitlements, savedSchoolCount, showUpgradeHint]
+  );
 
   const saveSchoolDecision = useCallback(
     (feature: RankingFeature, patch: SchoolDecisionPatch) => {
       const p = feature.properties;
       const schoolFavorite = createFavoriteItem(feature, "school", p.universityName);
+      const alreadySaved = favorites.some(
+        (favorite) => favorite.id === schoolFavorite.id
+      );
+      // Editing the decision workflow implicitly tracks the school, so honour the
+      // same Free cap before it silently adds a 16th school favorite.
+      if (!alreadySaved && !canSaveSchool(entitlements, savedSchoolCount)) {
+        showUpgradeHint(upgradeCopy.savedSchoolsCap);
+        return;
+      }
       setFavorites((current) =>
         current.some((favorite) => favorite.id === schoolFavorite.id)
           ? current
@@ -101,7 +165,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
         };
       });
     },
-    []
+    [favorites, entitlements, savedSchoolCount, showUpgradeHint]
   );
 
   const isFavorite = useCallback(
@@ -187,7 +251,16 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
       saveSchoolDecision,
       persistPreferenceProfile,
       applyWorkspaceBackup,
-      buildWorkspaceBackup
+      buildWorkspaceBackup,
+      isPro,
+      entitlements,
+      savedSchoolCount,
+      upgradeHint,
+      showUpgradeHint,
+      dismissUpgradeHint,
+      isProCardOpen,
+      openProCard,
+      closeProCard
     }),
     [
       favorites,
@@ -199,7 +272,16 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
       saveSchoolDecision,
       persistPreferenceProfile,
       applyWorkspaceBackup,
-      buildWorkspaceBackup
+      buildWorkspaceBackup,
+      isPro,
+      entitlements,
+      savedSchoolCount,
+      upgradeHint,
+      showUpgradeHint,
+      dismissUpgradeHint,
+      isProCardOpen,
+      openProCard,
+      closeProCard
     ]
   );
 

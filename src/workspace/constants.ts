@@ -99,6 +99,7 @@ export const preferenceStorageKey = "unimap.preferenceProfile";
 export const schoolDecisionsStorageKey = "unimap.schoolDecisions";
 export const welcomeDismissedStorageKey = "unimap.welcomeDismissed";
 export const facultyPageSize = 30;
-// Free tier caps the decision comparison at three schools. Kept as a constant so a
-// future paid tier can lift the limit without touching ComparePanel internals.
-export const MAX_COMPARE_SCHOOLS = 3;
+// v1.1 soft paywall placeholder. `unimap.pro` is a manual dev/preview toggle for
+// the Pro flag; LEO-196 replaces it with real subscription state. Tier caps
+// themselves live in src/entitlements.ts, not here.
+export const proStorageKey = "unimap.pro";

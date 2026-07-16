@@ -27,14 +27,8 @@ jobs:
         run: npm run format:check
       - name: Build
         run: npm run build
-      - name: Test recommendations
-        run: npm run test:recommendations
-      - name: Test local rankings
-        run: npm run test:local-rankings
-      - name: Test ranking sources
-        run: npm run test:ranking-sources
-      - name: Test US decision facts
-        run: npm run test:us-decision
+      - name: Test
+        run: npm test
       - name: Secret pattern scan
         run: |
           ! grep -RInE "(AIza[0-9A-Za-z_-]{20,}|sk-[A-Za-z0-9_-]{20,}|ghp_[A-Za-z0-9_]{20,}|github_pat_[A-Za-z0-9_]{20,}|AKIA[0-9A-Z]{16}|-----BEGIN .*PRIVATE KEY-----)" \

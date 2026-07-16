@@ -1,8 +1,18 @@
+/// <reference types="vitest/config" />
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
 export default defineConfig({
   plugins: [react()],
+  test: {
+    // Default to jsdom so component/localStorage-facing tests get a DOM + Web
+    // Storage. Pure-logic suites opt into the faster node environment per-file
+    // via a `// @vitest-environment node` docblock.
+    environment: "jsdom",
+    globals: true,
+    setupFiles: ["./tests/setup.ts"],
+    include: ["tests/**/*.test.{ts,tsx,mts,mjs}"]
+  },
   build: {
     // maplibre-gl is intentionally isolated into its own vendor chunk (~1 MB raw,
     // ~285 kB gzip). It is the map engine and loads regardless, so raise the limit

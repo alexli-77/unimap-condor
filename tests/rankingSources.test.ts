@@ -1,94 +1,67 @@
+// @vitest-environment node
+import { describe, expect, it } from "vitest";
 import {
   RANKINGS_DISCLAIMER,
   RANKING_LIST_LIMIT,
   getRankingSourceLink
-} from "../src/rankingSources.js";
-
-function assertOk(condition: unknown, message: string) {
-  if (!condition) throw new Error(message);
-}
-
-function assertEqual(actual: unknown, expected: unknown, message: string) {
-  if (actual !== expected) {
-    throw new Error(`${message}\nExpected: ${String(expected)}\nActual: ${String(actual)}`);
-  }
-}
+} from "../src/rankingSources";
 
 // LEO-187 compliance guardrails: every ranking source the UI can attribute must
 // resolve to an official, https publisher URL with a human-readable label, and
 // the reference disclaimer / list limit must stay populated so we never
 // republish a full third-party league table.
+describe("ranking sources compliance", () => {
+  it("keeps a reference-use disclaimer populated", () => {
+    expect(typeof RANKINGS_DISCLAIMER).toBe("string");
+    expect(RANKINGS_DISCLAIMER.trim().length).toBeGreaterThan(0);
+    expect(
+      RANKINGS_DISCLAIMER,
+      "RANKINGS_DISCLAIMER should state that rankings are shown for reference only"
+    ).toMatch(/reference/i);
+  });
 
-// 1. Disclaimer copy must be present and mention the publishers + reference use.
-assertOk(
-  typeof RANKINGS_DISCLAIMER === "string" && RANKINGS_DISCLAIMER.trim().length > 0,
-  "RANKINGS_DISCLAIMER must be a non-empty string"
-);
-assertOk(
-  /reference/i.test(RANKINGS_DISCLAIMER),
-  "RANKINGS_DISCLAIMER should state that rankings are shown for reference only"
-);
+  it("caps the locally surfaced list to a small positive slice", () => {
+    expect(Number.isInteger(RANKING_LIST_LIMIT)).toBe(true);
+    expect(RANKING_LIST_LIMIT).toBeGreaterThan(0);
+    expect(RANKING_LIST_LIMIT).toBeLessThanOrEqual(100);
+  });
 
-// 2. The local list limit must be a small positive integer (complete table lives
-// behind the outbound link).
-assertOk(
-  Number.isInteger(RANKING_LIST_LIMIT) && RANKING_LIST_LIMIT > 0 && RANKING_LIST_LIMIT <= 100,
-  `RANKING_LIST_LIMIT must be a small positive integer, got ${RANKING_LIST_LIMIT}`
-);
+  const knownSources = [
+    { query: "QS World University Rankings", host: "topuniversities.com" },
+    { query: "qs", host: "topuniversities.com" },
+    { query: "Times Higher Education", host: "timeshighereducation.com" },
+    { query: "Shanghai ARWU", host: "shanghairanking.com" },
+    { query: "arwu", host: "shanghairanking.com" },
+    { query: "CSRankings", host: "csrankings.org" }
+  ];
 
-// 3. Each known ranking publisher must resolve to a complete, official link.
-const knownSources = [
-  { query: "QS World University Rankings", host: "topuniversities.com" },
-  { query: "qs", host: "topuniversities.com" },
-  { query: "Times Higher Education", host: "timeshighereducation.com" },
-  { query: "Shanghai ARWU", host: "shanghairanking.com" },
-  { query: "arwu", host: "shanghairanking.com" },
-  { query: "CSRankings", host: "csrankings.org" }
-];
-
-for (const { query, host } of knownSources) {
-  const link = getRankingSourceLink(query);
-  assertOk(link, `getRankingSourceLink("${query}") must resolve to an official link`);
-  assertOk(
-    typeof link!.label === "string" && link!.label.trim().length > 0,
-    `Ranking source "${query}" must have a non-empty label`
+  it.each(knownSources)(
+    "resolves $query to an official https link at $host",
+    ({ query, host }) => {
+      const link = getRankingSourceLink(query);
+      expect(link, `getRankingSourceLink("${query}") must resolve to an official link`).toBeTruthy();
+      expect(typeof link!.label).toBe("string");
+      expect(link!.label.trim().length).toBeGreaterThan(0);
+      expect(
+        link!.url,
+        `Ranking source "${query}" must expose an https official URL, got ${link!.url}`
+      ).toMatch(/^https:\/\//);
+      expect(
+        link!.url,
+        `Ranking source "${query}" should point at official host ${host}, got ${link!.url}`
+      ).toContain(host);
+    }
   );
-  assertOk(
-    /^https:\/\//.test(link!.url),
-    `Ranking source "${query}" must expose an https official URL, got ${link!.url}`
-  );
-  assertOk(
-    link!.url.includes(host),
-    `Ranking source "${query}" should point at official host ${host}, got ${link!.url}`
-  );
-}
 
-// 4. Unknown source with a fallback URL keeps attribution pointing somewhere.
-const fallback = getRankingSourceLink("Some New Ranking", "https://example.org/table");
-assertOk(fallback, "Unknown source with fallback URL should still return a link");
-assertEqual(
-  fallback!.url,
-  "https://example.org/table",
-  "Fallback link must use the provided source URL"
-);
-assertOk(
-  fallback!.label.trim().length > 0,
-  "Fallback link must still carry a non-empty label"
-);
+  it("uses a provided fallback URL for an unknown source", () => {
+    const fallback = getRankingSourceLink("Some New Ranking", "https://example.org/table");
+    expect(fallback, "Unknown source with fallback URL should still return a link").toBeTruthy();
+    expect(fallback!.url).toBe("https://example.org/table");
+    expect(fallback!.label.trim().length).toBeGreaterThan(0);
+  });
 
-// 5. Unknown source without a fallback URL resolves to null (no fabricated link).
-assertEqual(
-  getRankingSourceLink(undefined),
-  null,
-  "No source name and no fallback URL must resolve to null"
-);
-assertEqual(
-  getRankingSourceLink("Totally Unknown Ranking"),
-  null,
-  "Unknown source without fallback must resolve to null"
-);
-
-console.log("Ranking sources compliance test set passed:", {
-  knownSources: knownSources.length,
-  listLimit: RANKING_LIST_LIMIT
+  it("never fabricates a link when there is no source and no fallback", () => {
+    expect(getRankingSourceLink(undefined)).toBeNull();
+    expect(getRankingSourceLink("Totally Unknown Ranking")).toBeNull();
+  });
 });

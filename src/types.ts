@@ -183,3 +183,95 @@ export type SchoolDecisionFacts = {
   employment?: SchoolDecisionFact[];
   immigration?: SchoolDecisionFact[];
 };
+
+// --- Supabase view row shapes -------------------------------------------------
+// Hand-written interfaces that mirror the columns exposed by the public
+// Supabase views (see supabase/migrations). They intentionally allow the loose
+// null/undefined shapes Postgres returns so the mapXxxRow() helpers can stay
+// defensive, while replacing the previous `row: any` boundary types.
+
+export type AdvisorCardRow = {
+  id: string | number;
+  slug?: string | null;
+  full_name: string;
+  title?: string | null;
+  institution_name: string;
+  institution_aliases?: string[] | null;
+  department?: string | null;
+  lab?: string | null;
+  profile_url?: string | null;
+  research_areas?: string[] | null;
+  is_active?: boolean | null;
+  priority?: string | null;
+  priority_score?: number | null;
+  fit_summary?: string | null;
+  contact_angle?: string | null;
+  target_programs?: string[] | null;
+  political_sensitivity?: string | null;
+  recruiting_signal?: string | null;
+  outreach_status?: string | null;
+  source_label?: string | null;
+};
+
+export type FacultyDirectoryRow = {
+  id?: string | number | null;
+  record_key?: string | null;
+  full_name?: string | null;
+  name?: string | null;
+  institution_name?: string | null;
+  institution_aliases?: string[] | null;
+  faculty_name?: string | null;
+  department_name?: string | null;
+  department?: string | null;
+  role?: string | null;
+  title?: string | null;
+  email?: string | null;
+  profile_url?: string | null;
+  research_areas?: string[] | null;
+  expertise?: string[] | null;
+  source_url?: string | null;
+};
+
+export type FacultyDepartmentSummaryRow = {
+  institution_name?: string | null;
+  faculty_name?: string | null;
+  department_name?: string | null;
+  member_count?: number | null;
+  count?: number | null;
+  research_areas?: string[] | null;
+  roles?: string[] | null;
+  source_url?: string | null;
+};
+
+export type DecisionFactJson = {
+  name?: string;
+  topic?: string;
+  degree_level?: string;
+  department?: string;
+  duration?: string;
+  program_format?: string;
+  amounts?: string[];
+  raw_label?: string;
+  evidence_url?: string;
+};
+
+export type DecisionFactRow = {
+  id?: string | number | null;
+  record_key?: string | null;
+  institution_name?: string | null;
+  record_type: SchoolDecisionFactType;
+  title?: string | null;
+  degree_level?: string | null;
+  topic?: string | null;
+  department?: string | null;
+  duration?: string | null;
+  program_format?: string | null;
+  amounts?: string[] | null;
+  raw_label?: string | null;
+  evidence_url?: string | null;
+  source_url?: string | null;
+  fact_json?: DecisionFactJson | null;
+  extracted_json?: DecisionFactJson | null;
+  confidence?: number | string | null;
+  verified_at?: string | null;
+};

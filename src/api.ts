@@ -1,8 +1,12 @@
 import type {
   AdvisorCard,
+  AdvisorCardRow,
+  DecisionFactRow,
   FacultyDepartmentSummary,
+  FacultyDepartmentSummaryRow,
   FacultyDirectoryEntry,
   FacultyDirectoryPage,
+  FacultyDirectoryRow,
   FacultyDirectorySummary,
   OpenDataProfile,
   RankingFeatureCollection,
@@ -19,6 +23,12 @@ import {
   mergeLocalUniversityDetail
 } from "./localRankings";
 import { supabase } from "./supabase";
+
+// Bump DATA_VERSION whenever the persisted response shape changes so an app
+// release invalidates every localStorage cache entry at once. The version is
+// folded into the key prefix (e.g. "unimap.api.v2.sources/availabilities").
+const DATA_VERSION = "v2";
+const CACHE_KEY_PREFIX = `unimap.api.${DATA_VERSION}.`;
 
 const responseCache = new Map<string, unknown>();
 const jsonCache = new Map<string, unknown>();
@@ -55,7 +65,7 @@ async function request<T>(path: string, signal?: AbortSignal): Promise<T> {
     return responseCache.get(path) as T;
   }
 
-  const storageKey = `unimap.api${path}`;
+  const storageKey = `${CACHE_KEY_PREFIX}${path.replace(/^\//, "")}`;
   const stored = readStoredResponse<T>(storageKey);
   if (stored) {
     responseCache.set(path, stored);
@@ -111,6 +121,67 @@ function storeResponse(key: string, data: unknown) {
   }
 }
 
+/**
+ * Lazily drop cache entries written by an older DATA_VERSION. Runs once on
+ * module load: any "unimap.api…" key that is not under the current versioned
+ * prefix is stale and removed. Unrelated app keys (unimap.favorites, etc.) are
+ * left untouched.
+ */
+function purgeStaleApiCache() {
+  try {
+    const stale: string[] = [];
+    for (let index = 0; index < localStorage.length; index += 1) {
+      const key = localStorage.key(index);
+      if (key && key.startsWith("unimap.api") && !key.startsWith(CACHE_KEY_PREFIX)) {
+        stale.push(key);
+      }
+    }
+    stale.forEach((key) => localStorage.removeItem(key));
+  } catch {
+    // Ignore private-mode / unavailable storage.
+  }
+}
+
+/**
+ * Escape a user-controllable string for safe interpolation into a SQL LIKE /
+ * ILIKE pattern. Postgres treats `%` and `_` as wildcards and `\` as the
+ * default escape character; without this a name containing those characters
+ * would silently broaden (or break) the match.
+ */
+export function escapeLikePattern(value: string): string {
+  return value.replace(/[\\%_]/g, (char) => `\\${char}`);
+}
+
+/**
+ * Run a Supabase-backed loader with a bundled/local fallback. Preserves the
+ * repeated try/catch contract used across the data domains:
+ *   - when Supabase is unavailable, serve local immediately;
+ *   - when the remote call throws, warn and serve local;
+ *   - when the remote call yields no usable data (remoteFn returns null),
+ *     serve local without warning.
+ * It deliberately does NOT emit onDataSourceChange signals: the Supabase
+ * domains never did, and that behaviour must stay unchanged.
+ */
+export async function withSupabaseFallback<T>(
+  remoteFn: () => Promise<T | null>,
+  localFn: () => Promise<T>,
+  label: string
+): Promise<T> {
+  if (supabase) {
+    try {
+      const remote = await remoteFn();
+      if (remote !== null) {
+        return remote;
+      }
+    } catch (error) {
+      console.warn(`Falling back to local ${label}`, error);
+    }
+  }
+  return localFn();
+}
+
+purgeStaleApiCache();
+
 function uniq(values: Array<string | undefined>) {
   return [...new Set(values.filter(Boolean) as string[])];
 }
@@ -149,7 +220,7 @@ function decisionFactMatchesUniversity(fact: SchoolDecisionFact, universityName:
   return selected.includes(institution) || institution.includes(selected);
 }
 
-function mapAdvisorRow(row: any): AdvisorCard {
+function mapAdvisorRow(row: AdvisorCardRow): AdvisorCard {
   return {
     id: String(row.id),
     fullName: row.full_name,
@@ -243,7 +314,7 @@ function sliceFacultyPage(
   };
 }
 
-function mapFacultyDirectoryRow(row: any): FacultyDirectoryEntry {
+function mapFacultyDirectoryRow(row: FacultyDirectoryRow): FacultyDirectoryEntry {
   const researchAreas = Array.isArray(row.research_areas)
     ? row.research_areas
     : Array.isArray(row.expertise)
@@ -264,7 +335,9 @@ function mapFacultyDirectoryRow(row: any): FacultyDirectoryEntry {
   };
 }
 
-function mapDepartmentSummaryRow(row: any): FacultyDepartmentSummary {
+function mapDepartmentSummaryRow(
+  row: FacultyDepartmentSummaryRow
+): FacultyDepartmentSummary {
   return {
     name: row.department_name || "Academic department",
     facultyName: row.faculty_name ?? "",
@@ -274,7 +347,7 @@ function mapDepartmentSummaryRow(row: any): FacultyDepartmentSummary {
   };
 }
 
-function mapDecisionFactRow(row: any): SchoolDecisionFact {
+function mapDecisionFactRow(row: DecisionFactRow): SchoolDecisionFact {
   const fact = row.fact_json ?? row.extracted_json ?? {};
   const amounts = Array.isArray(row.amounts)
     ? row.amounts
@@ -328,12 +401,12 @@ async function getSchoolDecisionFacts(
     return decisionFactsCache.get(cacheKey)!;
   }
 
-  if (supabase) {
-    try {
-      const query = supabase
+  const facts = await withSupabaseFallback(
+    async () => {
+      const query = supabase!
         .from("university_decision_facts_public")
         .select("*")
-        .ilike("institution_name", `%${universityName}%`)
+        .ilike("institution_name", `%${escapeLikePattern(universityName)}%`)
         .order("record_type", { ascending: true })
         .order("title", { ascending: true });
 
@@ -341,25 +414,25 @@ async function getSchoolDecisionFacts(
       if (error) throw error;
 
       if (data?.length) {
-        const facts = buildDecisionFacts(
+        return buildDecisionFacts(
           universityName,
           data.map(mapDecisionFactRow),
           "Verified decision facts"
         );
-        if (!signal) decisionFactsCache.set(cacheKey, facts);
-        return facts;
       }
-    } catch (error) {
-      console.warn("Falling back to local decision facts", error);
-    }
-  }
-
-  const { localDecisionFacts } = await import("./localDecisionFacts");
-  const facts = buildDecisionFacts(
-    universityName,
-    localDecisionFacts,
-    "Local verified facts"
+      return null;
+    },
+    async () => {
+      const { localDecisionFacts } = await import("./localDecisionFacts");
+      return buildDecisionFacts(
+        universityName,
+        localDecisionFacts,
+        "Local verified facts"
+      );
+    },
+    "decision facts"
   );
+
   if (!signal) decisionFactsCache.set(cacheKey, facts);
   return facts;
 }
@@ -373,12 +446,12 @@ async function getFacultyDirectorySummary(
     return facultySummaryCache.get(cacheKey)!;
   }
 
-  if (supabase) {
-    try {
-      const query = supabase
+  const summary = await withSupabaseFallback<FacultyDirectorySummary>(
+    async () => {
+      const query = supabase!
         .from("university_faculty_department_summary_public")
         .select("*")
-        .ilike("institution_name", `%${universityName}%`)
+        .ilike("institution_name", `%${escapeLikePattern(universityName)}%`)
         .order("member_count", { ascending: false });
 
       const { data, error } = await (signal ? query.abortSignal(signal) : query);
@@ -386,7 +459,7 @@ async function getFacultyDirectorySummary(
 
       const departments = (data ?? []).map(mapDepartmentSummaryRow);
       if (departments.length) {
-        const summary: FacultyDirectorySummary = {
+        return {
           universityName,
           totalEntries: departments.reduce(
             (sum, department) => sum + department.count,
@@ -395,20 +468,19 @@ async function getFacultyDirectorySummary(
           sourceUrl: data?.[0]?.source_url ?? undefined,
           sourceLabel: "Verified faculty index",
           departments
-        };
-        if (!signal) facultySummaryCache.set(cacheKey, summary);
-        return summary;
+        } satisfies FacultyDirectorySummary;
       }
-    } catch (error) {
-      console.warn("Falling back to local faculty summary", error);
-    }
-  }
-
-  const summary = buildFacultySummary(
-    universityName,
-    await getFacultyDirectoryEntries(universityName),
-    "Local faculty directory"
+      return null;
+    },
+    async () =>
+      buildFacultySummary(
+        universityName,
+        await getFacultyDirectoryEntries(universityName),
+        "Local faculty directory"
+      ),
+    "faculty summary"
   );
+
   if (!signal) facultySummaryCache.set(cacheKey, summary);
   return summary;
 }
@@ -430,12 +502,12 @@ async function getFacultyDirectoryPage(
     return facultyPageCache.get(cacheKey)!;
   }
 
-  if (supabase) {
-    try {
-      let query = supabase
+  const page = await withSupabaseFallback<FacultyDirectoryPage>(
+    async () => {
+      let query = supabase!
         .from("university_faculty_directory_public")
         .select("*", { count: "exact" })
-        .ilike("institution_name", `%${universityName}%`)
+        .ilike("institution_name", `%${escapeLikePattern(universityName)}%`)
         .order("full_name", { ascending: true })
         .range(offset, offset + limit - 1);
 
@@ -447,26 +519,26 @@ async function getFacultyDirectoryPage(
       if (error) throw error;
 
       if (data?.length || count) {
-        const page: FacultyDirectoryPage = {
+        return {
           entries: (data ?? []).map(mapFacultyDirectoryRow),
           total: count ?? data?.length ?? 0,
           offset,
           limit,
           hasMore: offset + limit < (count ?? 0),
           sourceUrl: data?.[0]?.source_url ?? undefined
-        };
-        if (!signal) facultyPageCache.set(cacheKey, page);
-        return page;
+        } satisfies FacultyDirectoryPage;
       }
-    } catch (error) {
-      console.warn("Falling back to local faculty page", error);
-    }
-  }
-
-  const entries = (await getFacultyDirectoryEntries(universityName)).filter(
-    (entry) => !departmentName || entry.departmentName === departmentName
+      return null;
+    },
+    async () => {
+      const entries = (await getFacultyDirectoryEntries(universityName)).filter(
+        (entry) => !departmentName || entry.departmentName === departmentName
+      );
+      return sliceFacultyPage(entries, offset, limit);
+    },
+    "faculty page"
   );
-  const page = sliceFacultyPage(entries, offset, limit);
+
   if (!signal) facultyPageCache.set(cacheKey, page);
   return page;
 }
@@ -480,34 +552,27 @@ async function getAdvisorCards(
     return advisorCache.get(cacheKey)!;
   }
 
-  if (!supabase) {
-    const localCards = await getLocalAdvisorCards(universityName);
-    if (!signal) advisorCache.set(cacheKey, localCards);
-    return localCards;
-  }
+  const cards = await withSupabaseFallback(
+    async () => {
+      const query = supabase!
+        .from("university_advisor_cards")
+        .select("*")
+        .eq("is_active", true)
+        .order("priority_score", { ascending: false });
 
-  try {
-    const query = supabase
-      .from("university_advisor_cards")
-      .select("*")
-      .eq("is_active", true)
-      .order("priority_score", { ascending: false });
+      const { data, error } = await (signal ? query.abortSignal(signal) : query);
+      if (error) throw error;
 
-    const { data, error } = await (signal ? query.abortSignal(signal) : query);
-    if (error) throw error;
+      return (data ?? [])
+        .map(mapAdvisorRow)
+        .filter((advisor) => advisorMatchesUniversity(advisor, universityName));
+    },
+    async () => getLocalAdvisorCards(universityName),
+    "advisor cards"
+  );
 
-    const cards = (data ?? [])
-      .map(mapAdvisorRow)
-      .filter((advisor) => advisorMatchesUniversity(advisor, universityName));
-
-    if (!signal) advisorCache.set(cacheKey, cards);
-    return cards;
-  } catch (error) {
-    console.warn("Falling back to local advisor cards", error);
-    const localCards = await getLocalAdvisorCards(universityName);
-    if (!signal) advisorCache.set(cacheKey, localCards);
-    return localCards;
-  }
+  if (!signal) advisorCache.set(cacheKey, cards);
+  return cards;
 }
 
 async function getOpenDataProfile(

@@ -7,8 +7,8 @@ import {
 } from "../../recommendationPolicy";
 import type { RankingFeature, SchoolDecisionFacts, UniversityDetail } from "../../types";
 import { summarizeFreshness } from "../../decisionFreshness";
+import { PRO_MAX_COMPARE_SCHOOLS } from "../../entitlements";
 import { useWorkspace } from "../../state/workspaceContext";
-import { MAX_COMPARE_SCHOOLS } from "../../workspace/constants";
 import { getDefaultSchoolDecision, getStatusMeta } from "../../workspace/helpers";
 import type { SchoolDecision } from "../../workspace/types";
 
@@ -94,7 +94,9 @@ export function ComparePanel({
   featureIndex: Map<number, RankingFeature>;
   onRemove: (id: number) => void;
 }) {
-  const { preferenceProfile, schoolDecisions } = useWorkspace();
+  const { preferenceProfile, schoolDecisions, entitlements, isPro, openProCard } =
+    useWorkspace();
+  const maxCompareSchools = entitlements.maxCompareSchools;
   const [details, setDetails] = useState<UniversityDetail[]>([]);
   const [factsById, setFactsById] = useState<Record<number, SchoolDecisionFacts | null>>(
     {}
@@ -152,7 +154,7 @@ export function ComparePanel({
         <div className="compare-empty">
           <strong>Line up decisions side by side</strong>
           <p className="muted">
-            Add up to {MAX_COMPARE_SCHOOLS} schools from a detail card (&ldquo;Add to
+            Add up to {maxCompareSchools} schools from a detail card (&ldquo;Add to
             compare&rdquo;) or the Saved list. This table lines up fit grade, decision
             status, funding, employment/immigration signals, and open gaps so you can
             choose, not just browse.
@@ -169,7 +171,15 @@ export function ComparePanel({
         <h2>Compare</h2>
       </div>
       <p className="compare-hint muted">
-        Decision comparison · up to {MAX_COMPARE_SCHOOLS} schools
+        Decision comparison · up to {maxCompareSchools} schools
+        {!isPro ? (
+          <>
+            {" · "}
+            <button type="button" className="compare-upgrade-link" onClick={openProCard}>
+              Pro compares {PRO_MAX_COMPARE_SCHOOLS}
+            </button>
+          </>
+        ) : null}
       </p>
       {loading && (
         <p className="muted inline-loading">

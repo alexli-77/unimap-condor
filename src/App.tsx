@@ -6,6 +6,7 @@ import {
   Loader2,
   Settings2,
   SlidersHorizontal,
+  Sparkles,
   Star,
   X
 } from "lucide-react";
@@ -20,8 +21,10 @@ import { FiltersPanel } from "./components/panels/FiltersPanel";
 import { SavedPanel } from "./components/panels/SavedPanel";
 import { ViewPanel } from "./components/panels/ViewPanel";
 import { PreferenceDialog } from "./components/preference/PreferenceDialog";
+import { ProUpgradeCard } from "./components/ProUpgradeCard";
 import { useDebouncedValue } from "./hooks/useDebouncedValue";
 import { buildShortlistHtml } from "./exportShortlist";
+import { canAddCompareSchool, upgradeCopy } from "./entitlements";
 import { useWorkspace } from "./state/workspaceContext";
 import type {
   RankingFeature,
@@ -29,7 +32,6 @@ import type {
   SourceAvailability
 } from "./types";
 import {
-  MAX_COMPARE_SCHOOLS,
   northAmericaCsTemplate,
   welcomeDismissedStorageKey
 } from "./workspace/constants";
@@ -52,7 +54,14 @@ export function App() {
     favoriteFeatures,
     persistPreferenceProfile,
     applyWorkspaceBackup,
-    buildWorkspaceBackup
+    buildWorkspaceBackup,
+    entitlements,
+    upgradeHint,
+    showUpgradeHint,
+    dismissUpgradeHint,
+    isProCardOpen,
+    openProCard,
+    closeProCard
   } = useWorkspace();
 
   const [availabilities, setAvailabilities] = useState<SourceAvailability[]>([]);
@@ -203,11 +212,14 @@ export function App() {
   }, [filteredFeatures]);
 
   const addToCompare = (id: number) => {
-    setCompareIds((ids) =>
-      ids.includes(id)
-        ? ids
-        : [...ids.slice(Math.max(0, ids.length - (MAX_COMPARE_SCHOOLS - 1))), id]
-    );
+    if (compareIds.includes(id)) return;
+    // Soft paywall: Free compares up to 3 schools, Pro up to 6. At the cap we
+    // nudge instead of silently dropping the oldest column.
+    if (!canAddCompareSchool(entitlements, compareIds.length)) {
+      showUpgradeHint(upgradeCopy.compareCap);
+      return;
+    }
+    setCompareIds((ids) => (ids.includes(id) ? ids : [...ids, id]));
   };
 
   const toggleLeftPanel = (panel: LeftPanel) => {
@@ -271,7 +283,8 @@ export function App() {
       favorites,
       schoolDecisions,
       preferenceProfile,
-      data?.features ?? []
+      data?.features ?? [],
+      { watermark: entitlements.shortlistWatermark }
     );
     const blob = new Blob([html], { type: "text/html;charset=utf-8" });
     const url = URL.createObjectURL(blob);
@@ -283,7 +296,7 @@ export function App() {
     URL.revokeObjectURL(url);
     const schoolCount = favorites.filter((favorite) => favorite.kind === "school").length;
     setWorkspaceMessage(`Exported an HTML shortlist for ${schoolCount} schools.`);
-  }, [data, favorites, preferenceProfile, schoolDecisions]);
+  }, [data, favorites, preferenceProfile, schoolDecisions, entitlements]);
 
   const importWorkspace = useCallback(
     async (file: File) => {
@@ -400,6 +413,8 @@ export function App() {
           <WelcomeOverlay onStartTemplate={startWithTemplate} onSkip={dismissWelcome} />
         )}
 
+        {isProCardOpen && <ProUpgradeCard onClose={closeProCard} />}
+
         {activeLeftPanel && (
           <div className="drawer-shell">
             <aside className="sidebar tool-drawer">
@@ -491,6 +506,30 @@ export function App() {
                 type="button"
                 aria-label="Dismiss message"
                 onClick={() => setToast("")}
+              >
+                <X size={13} />
+              </button>
+            </div>
+          )}
+          {upgradeHint && (
+            <div className="banner upgrade" role="status">
+              <Sparkles size={14} />
+              <span>{upgradeHint}</span>
+              <button
+                className="banner-upgrade-cta"
+                type="button"
+                onClick={() => {
+                  dismissUpgradeHint();
+                  openProCard();
+                }}
+              >
+                See Pro
+              </button>
+              <button
+                className="banner-close"
+                type="button"
+                aria-label="Dismiss upgrade message"
+                onClick={dismissUpgradeHint}
               >
                 <X size={13} />
               </button>

@@ -1,5 +1,6 @@
-import { ArrowLeftRight, Download, FileText, Star, Upload } from "lucide-react";
+import { ArrowLeftRight, Download, FileText, Sparkles, Star, Upload } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { FREE_MAX_SAVED_SCHOOLS, upgradeCopy, WATERMARK_LABEL } from "../../entitlements";
 import { useWorkspace } from "../../state/workspaceContext";
 import { applicationStatuses } from "../../workspace/constants";
 import type { ApplicationStatus, FavoriteItem } from "../../workspace/types";
@@ -19,7 +20,7 @@ export function SavedPanel({
   onImportWorkspace: (file: File) => void;
   workspaceMessage: string;
 }) {
-  const { favorites, schoolDecisions } = useWorkspace();
+  const { favorites, schoolDecisions, isPro, entitlements, openProCard } = useWorkspace();
   const importInputRef = useRef<HTMLInputElement | null>(null);
   const schoolCount = favorites.filter((favorite) => favorite.kind === "school").length;
   const [activeStatus, setActiveStatus] = useState<ApplicationStatus>("interested");
@@ -54,6 +55,16 @@ export function SavedPanel({
       <div className="panel-title">
         <Star size={18} />
         <h2>Saved</h2>
+        {!isPro && entitlements.maxSavedSchools !== null ? (
+          <span
+            className={`saved-count-pill ${
+              schoolCount >= entitlements.maxSavedSchools ? "at-cap" : ""
+            }`}
+            title="Free plan saved-school limit"
+          >
+            {schoolCount}/{entitlements.maxSavedSchools} schools
+          </span>
+        ) : null}
       </div>
       <div className="workspace-backup-card">
         <div>
@@ -109,6 +120,12 @@ export function SavedPanel({
           </button>
         </div>
         {!schoolCount ? <p>Save at least one school to export a shortlist.</p> : null}
+        {entitlements.shortlistWatermark ? (
+          <p className="export-watermark-note">
+            Free exports carry a small &ldquo;{WATERMARK_LABEL}&rdquo; mark.{" "}
+            {upgradeCopy.shortlistWatermark}
+          </p>
+        ) : null}
       </div>
       {!favorites.length ? (
         <p className="muted">Star a university, subject, or advisor to show it here.</p>
@@ -173,6 +190,20 @@ export function SavedPanel({
           )}
         </>
       )}
+      {!isPro ? (
+        <button
+          type="button"
+          className="pro-upsell-row"
+          onClick={openProCard}
+          title={`Free plan tracks up to ${FREE_MAX_SAVED_SCHOOLS} schools`}
+        >
+          <Sparkles size={15} />
+          <span>
+            <strong>{upgradeCopy.proCta}</strong>
+            <em>Unlimited saves · compare 6 · watermark-free exports</em>
+          </span>
+        </button>
+      ) : null}
     </section>
   );
 }

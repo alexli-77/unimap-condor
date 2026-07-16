@@ -14,6 +14,7 @@ import type {
   SchoolDecisionFacts
 } from "../../../types";
 import { useSchoolDecisionFacts } from "../../../hooks/useSchoolDecisionFacts";
+import { isLowConfidence, isStale, summarizeFreshness } from "../../../decisionFreshness";
 import { useWorkspace } from "../../../state/workspaceContext";
 import { getStatusMeta, hasPreferenceProfile } from "../../../workspace/helpers";
 import type { SchoolDecision } from "../../../workspace/types";
@@ -375,6 +376,12 @@ export function DecisionPanel({
         </div>
       ) : null}
 
+      {totalFacts > 0 ? (
+        <DecisionFreshnessSummary
+          facts={[...programs, ...funding, ...employment, ...immigration]}
+        />
+      ) : null}
+
       <div className="decision-source-row">
         <span>{facts?.sourceLabel ?? "Decision facts"}</span>
         {[...programs, ...funding, ...employment, ...immigration]
@@ -436,6 +443,8 @@ function DecisionFactSection({
 
 function DecisionFactItem({ fact }: { fact: SchoolDecisionFact }) {
   const tags = getDecisionFactTags(fact).slice(0, 4);
+  const stale = isStale(fact.verifiedAt);
+  const lowConfidence = isLowConfidence(fact.confidence);
 
   return (
     <details className="decision-fact">
@@ -444,6 +453,16 @@ function DecisionFactItem({ fact }: { fact: SchoolDecisionFact }) {
           <strong>{fact.title}</strong>
           <span>{tags.join(" · ") || "Verified official fact"}</span>
         </div>
+        {stale || lowConfidence ? (
+          <div className="freshness-flags">
+            {stale ? (
+              <span className="freshness-badge stale">May be outdated</span>
+            ) : null}
+            {lowConfidence ? (
+              <span className="freshness-badge unconfirmed">Unconfirmed</span>
+            ) : null}
+          </div>
+        ) : null}
         <ChevronDown size={16} />
       </summary>
       <div className="collapsible-body">
@@ -455,10 +474,61 @@ function DecisionFactItem({ fact }: { fact: SchoolDecisionFact }) {
             ))}
           </div>
         ) : null}
-        <div className="decision-fact-actions">
-          <ExternalChip href={fact.evidenceUrl} label="Official source" />
-        </div>
+        <FactFreshnessMeta fact={fact} stale={stale} lowConfidence={lowConfidence} />
       </div>
     </details>
+  );
+}
+
+// Per-item freshness line: "Verified 2026-07-15 · source" plus lightweight
+// outdated / unconfirmed markers. Employment & immigration prose already carries
+// an "as of 2026-07" clause, so we only surface the machine verification date and
+// do not repeat the policy period here.
+function FactFreshnessMeta({
+  fact,
+  stale,
+  lowConfidence
+}: {
+  fact: SchoolDecisionFact;
+  stale: boolean;
+  lowConfidence: boolean;
+}) {
+  return (
+    <div className="fact-freshness">
+      <span className="fact-freshness-note">
+        {fact.verifiedAt ? `Verified ${fact.verifiedAt}` : "Verification date unknown"}
+      </span>
+      {stale ? <span className="freshness-badge stale">May be outdated</span> : null}
+      {lowConfidence ? (
+        <span className="freshness-badge unconfirmed">Unconfirmed</span>
+      ) : null}
+      <ExternalChip href={fact.evidenceUrl} label="Source" />
+    </div>
+  );
+}
+
+// Card-level roll-up: "Data verified between X and Y · N sources", with a soft
+// outdated hint when any connected fact has aged past the staleness window.
+function DecisionFreshnessSummary({ facts }: { facts: SchoolDecisionFact[] }) {
+  const summary = summarizeFreshness(facts);
+  if (!summary.datedCount) return null;
+
+  const range =
+    summary.oldest === summary.newest
+      ? `Data verified ${summary.oldest}`
+      : `Data verified between ${summary.oldest} and ${summary.newest}`;
+  const sources = `${summary.sourceCount} ${summary.sourceCount === 1 ? "source" : "sources"}`;
+
+  return (
+    <p className="decision-freshness-summary">
+      <span>
+        {range} · {sources}
+      </span>
+      {summary.staleCount ? (
+        <span className="freshness-badge stale">
+          {summary.staleCount} may be outdated
+        </span>
+      ) : null}
+    </p>
   );
 }

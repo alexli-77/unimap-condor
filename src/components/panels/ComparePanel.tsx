@@ -6,6 +6,7 @@ import {
   type RecommendationResult
 } from "../../recommendationPolicy";
 import type { RankingFeature, SchoolDecisionFacts, UniversityDetail } from "../../types";
+import { summarizeFreshness } from "../../decisionFreshness";
 import { useWorkspace } from "../../state/workspaceContext";
 import { MAX_COMPARE_SCHOOLS } from "../../workspace/constants";
 import { getDefaultSchoolDecision, getStatusMeta } from "../../workspace/helpers";
@@ -60,6 +61,21 @@ function summarizeWorkSignal(facts: SchoolDecisionFacts | null) {
   if (employment.length) parts.push(`${employment.length} employment`);
   if (immigration.length) parts.push(`${immigration.length} immigration`);
   return parts.join(" · ");
+}
+
+// Compare rows show a "freshness" signal built from the oldest verified fact, so a
+// column carrying stale data is flagged before the user commits to a decision.
+function summarizeFreshnessSignal(facts: SchoolDecisionFacts | null) {
+  if (!facts) return null;
+  const all = [
+    ...facts.programs,
+    ...facts.funding,
+    ...(facts.employment ?? []),
+    ...(facts.immigration ?? [])
+  ];
+  const summary = summarizeFreshness(all);
+  if (!summary.oldest) return null;
+  return { oldest: summary.oldest, stale: summary.staleCount > 0 };
 }
 
 type CompareColumn = {
@@ -222,6 +238,26 @@ export function ComparePanel({
                 return (
                   <td key={col.detail.id}>
                     {summary ?? <span className="compare-nodata">No data</span>}
+                  </td>
+                );
+              })}
+            </tr>
+            <tr>
+              <th scope="row">Data freshness</th>
+              {columns.map((col) => {
+                const signal = summarizeFreshnessSignal(col.facts);
+                return (
+                  <td key={col.detail.id}>
+                    {signal ? (
+                      <span className="compare-freshness">
+                        Oldest {signal.oldest}
+                        {signal.stale ? (
+                          <span className="freshness-badge stale">May be outdated</span>
+                        ) : null}
+                      </span>
+                    ) : (
+                      <span className="compare-nodata">No data</span>
+                    )}
                   </td>
                 );
               })}

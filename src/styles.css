@@ -1786,6 +1786,71 @@ textarea:focus {
   justify-content: space-between;
 }
 
+/* Data freshness / confidence markers (LEO-194). Kept lightweight so they read as
+   secondary metadata rather than competing with the fact content. */
+.fact-freshness {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 7px;
+  margin-top: 8px;
+}
+
+.fact-freshness-note {
+  color: #617087;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.freshness-flags {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.freshness-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 8px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 750;
+  white-space: nowrap;
+}
+
+.freshness-badge.stale {
+  color: #92400e;
+  background: #fef3c7;
+  border-color: #fde68a;
+}
+
+.freshness-badge.unconfirmed {
+  color: #516176;
+  background: #eef3f8;
+  border-color: #d9e0ea;
+}
+
+.decision-freshness-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 7px;
+  color: #617087;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.compare-freshness {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  color: #516176;
+  font-size: 12px;
+}
+
 .tag-cloud,
 .signal-list,
 .link-grid,

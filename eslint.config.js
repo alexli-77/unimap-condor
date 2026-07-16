@@ -11,7 +11,10 @@ export default tseslint.config(
       "node_modules",
       ".tmp-recommendation-tests",
       "docs",
-      "tools"
+      "tools",
+      // Supabase Edge Functions run on Deno (esm.sh imports, Deno globals) and
+      // are deployed separately — they are not part of the app's lint/build.
+      "supabase/functions"
     ]
   },
   {

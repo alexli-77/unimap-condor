@@ -1,6 +1,22 @@
-import { ArrowLeftRight, Download, FileText, Sparkles, Star, Upload } from "lucide-react";
+import {
+  ArrowLeftRight,
+  Download,
+  FileText,
+  Lock,
+  Sparkles,
+  Star,
+  Upload
+} from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { FREE_MAX_SAVED_SCHOOLS, upgradeCopy, WATERMARK_LABEL } from "../../entitlements";
+import {
+  canImportExport,
+  canUseCompare,
+  FREE_MAX_SAVED_SCHOOLS,
+  gateCopy,
+  requiresAuthForSaved,
+  upgradeCopy,
+  WATERMARK_LABEL
+} from "../../entitlements";
 import { useWorkspace } from "../../state/workspaceContext";
 import { applicationStatuses } from "../../workspace/constants";
 import type { ApplicationStatus, FavoriteItem } from "../../workspace/types";
@@ -11,6 +27,7 @@ export function SavedPanel({
   onExportWorkspace,
   onExportShortlist,
   onImportWorkspace,
+  onSignIn,
   workspaceMessage
 }: {
   onSelect: (favorite: FavoriteItem) => void;
@@ -18,9 +35,11 @@ export function SavedPanel({
   onExportWorkspace: () => void;
   onExportShortlist: () => void;
   onImportWorkspace: (file: File) => void;
+  onSignIn: () => void;
   workspaceMessage: string;
 }) {
-  const { favorites, schoolDecisions, isPro, entitlements, openProCard } = useWorkspace();
+  const { favorites, schoolDecisions, isPro, entitlements, accessTier, openProCard } =
+    useWorkspace();
   const importInputRef = useRef<HTMLInputElement | null>(null);
   const schoolCount = favorites.filter((favorite) => favorite.kind === "school").length;
   const [activeStatus, setActiveStatus] = useState<ApplicationStatus>("interested");
@@ -50,6 +69,31 @@ export function SavedPanel({
     }
   }, [activeStatus, fallbackStatus, populatedStatuses]);
 
+  // Tier 0 (signed out): the Saved panel shows a sign-in prompt instead of
+  // content. Placed after the hooks so the hook order stays stable across
+  // sign-in/out. Tier gates: import/export and Compare are Pro-only — kept
+  // visible but locked so the value stays discoverable.
+  const importExportUnlocked = canImportExport(accessTier);
+  const compareUnlocked = canUseCompare(accessTier);
+
+  if (requiresAuthForSaved(accessTier)) {
+    return (
+      <section className="panel saved-panel">
+        <div className="panel-title">
+          <Star size={18} />
+          <h2>Saved</h2>
+        </div>
+        <div className="gate-signin-card">
+          <Lock size={26} />
+          <p>{gateCopy.signInForSaved}</p>
+          <button className="primary-button" type="button" onClick={onSignIn}>
+            Sign in
+          </button>
+        </div>
+      </section>
+    );
+  }
+
   return (
     <section className="panel saved-panel">
       <div className="panel-title">
@@ -75,16 +119,24 @@ export function SavedPanel({
           </span>
         </div>
         <div className="workspace-backup-actions">
-          <button className="ghost-button" type="button" onClick={onExportWorkspace}>
-            <Download size={15} />
+          <button
+            className={`ghost-button ${importExportUnlocked ? "" : "locked"}`}
+            type="button"
+            title={importExportUnlocked ? undefined : gateCopy.importExportLocked}
+            onClick={importExportUnlocked ? onExportWorkspace : openProCard}
+          >
+            {importExportUnlocked ? <Download size={15} /> : <Lock size={15} />}
             Export
           </button>
           <button
-            className="ghost-button"
+            className={`ghost-button ${importExportUnlocked ? "" : "locked"}`}
             type="button"
-            onClick={() => importInputRef.current?.click()}
+            title={importExportUnlocked ? undefined : gateCopy.importExportLocked}
+            onClick={
+              importExportUnlocked ? () => importInputRef.current?.click() : openProCard
+            }
           >
-            <Upload size={15} />
+            {importExportUnlocked ? <Upload size={15} /> : <Lock size={15} />}
             Import
           </button>
           <input
@@ -174,13 +226,29 @@ export function SavedPanel({
                     </button>
                     {favorite.kind === "school" ? (
                       <button
-                        className="saved-compare-button"
+                        className={`saved-compare-button ${
+                          compareUnlocked ? "" : "locked"
+                        }`}
                         type="button"
-                        title="Add to compare"
-                        aria-label={`Add ${favorite.universityName} to compare`}
-                        onClick={() => onCompare(favorite.universityId)}
+                        title={
+                          compareUnlocked ? "Add to compare" : gateCopy.compareLocked
+                        }
+                        aria-label={
+                          compareUnlocked
+                            ? `Add ${favorite.universityName} to compare`
+                            : gateCopy.compareLocked
+                        }
+                        onClick={() =>
+                          compareUnlocked
+                            ? onCompare(favorite.universityId)
+                            : openProCard()
+                        }
                       >
-                        <ArrowLeftRight size={15} />
+                        {compareUnlocked ? (
+                          <ArrowLeftRight size={15} />
+                        ) : (
+                          <Lock size={15} />
+                        )}
                       </button>
                     ) : null}
                   </div>

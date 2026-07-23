@@ -10,8 +10,10 @@ import {
 import type { PreferenceProfile, RankingFeature } from "../types";
 import {
   canSaveSchool,
+  getAccessTier,
   getEntitlements,
   upgradeCopy,
+  type AccessTier,
   type Entitlements
 } from "../entitlements";
 import {
@@ -57,6 +59,8 @@ export type WorkspaceContextValue = {
   // --- v1.1 soft paywall ---
   isPro: boolean;
   entitlements: Entitlements;
+  // Hard 3-tier gate (visitor / member / pro) resolved from auth + subscription.
+  accessTier: AccessTier;
   savedSchoolCount: number;
   // Transient upgrade nudge (inline/toast, never a modal). Touchpoints call
   // showUpgradeHint when a Free cap is hit; the shell renders it and clears it.
@@ -104,6 +108,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
   const [isProCardOpen, setIsProCardOpen] = useState(false);
 
   const entitlements = useMemo(() => getEntitlements(isPro), [isPro]);
+  const accessTier = getAccessTier(Boolean(user), isPro);
   const savedSchoolCount = useMemo(
     () => favorites.filter((favorite) => favorite.kind === "school").length,
     [favorites]
@@ -361,6 +366,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
       buildWorkspaceBackup,
       isPro,
       entitlements,
+      accessTier,
       savedSchoolCount,
       upgradeHint,
       showUpgradeHint,
@@ -382,6 +388,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
       buildWorkspaceBackup,
       isPro,
       entitlements,
+      accessTier,
       savedSchoolCount,
       upgradeHint,
       showUpgradeHint,

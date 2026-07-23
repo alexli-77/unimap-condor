@@ -1,17 +1,49 @@
 import { useState } from "react";
-import { LogOut, Mail, ShieldCheck, X } from "lucide-react";
+import { KeyRound, LogOut, Mail, ShieldCheck, X } from "lucide-react";
 import { useAuth } from "../../state/authContext";
 
-// Account panel. Magic-link (passwordless) sign-in keeps us out of password
-// management; when Supabase is unconfigured the dialog degrades to a clear
-// "not configured" note so the logged-out experience never changes.
+// The stylesheet's segmented control is 3-up; this toggle only has two modes.
+const twoUpSegmented: React.CSSProperties = {
+  gridTemplateColumns: "repeat(2, minmax(0, 1fr))"
+};
+
+// Reuse the link styling on <button> elements (forgot password, sign in/up switch).
+const linkButton: React.CSSProperties = {
+  background: "none",
+  border: 0,
+  padding: 0,
+  cursor: "pointer"
+};
+
+// Account panel. Password sign-in is the default; magic-link (passwordless)
+// stays available as an alternate mode. When Supabase is unconfigured the
+// dialog degrades to a clear "not configured" note so the logged-out
+// experience never changes.
 export function AuthDialog({ onClose }: { onClose: () => void }) {
-  const { isConfigured, user, signInWithOtp, signOut } = useAuth();
+  const {
+    isConfigured,
+    user,
+    signInWithOtp,
+    signUpWithPassword,
+    signInWithPassword,
+    resetPassword,
+    signOut
+  } = useAuth();
+  const [mode, setMode] = useState<"password" | "otp">("password");
+  const [view, setView] = useState<"signin" | "signup">("signin");
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [displayName, setDisplayName] = useState("");
   const [status, setStatus] = useState<"idle" | "sending" | "sent" | "error">("idle");
+  const [sentKind, setSentKind] = useState<"otp" | "confirm" | "reset">("otp");
   const [message, setMessage] = useState("");
 
-  const handleSubmit = async (event: React.FormEvent) => {
+  const resetFeedback = () => {
+    setStatus("idle");
+    setMessage("");
+  };
+
+  const handleOtpSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!email.trim()) return;
     setStatus("sending");
@@ -22,6 +54,64 @@ export function AuthDialog({ onClose }: { onClose: () => void }) {
       setMessage(error);
       return;
     }
+    setSentKind("otp");
+    setStatus("sent");
+  };
+
+  const handlePasswordSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!email.trim() || !password) return;
+    if (view === "signup" && password.length < 8) {
+      setStatus("error");
+      setMessage("Password must be at least 8 characters.");
+      return;
+    }
+    setStatus("sending");
+    setMessage("");
+    if (view === "signup") {
+      const { error, needsConfirmation } = await signUpWithPassword(
+        email.trim(),
+        password,
+        displayName.trim() || undefined
+      );
+      if (error) {
+        setStatus("error");
+        setMessage(error);
+        return;
+      }
+      if (needsConfirmation) {
+        setSentKind("confirm");
+        setStatus("sent");
+        return;
+      }
+      // A session was returned; the signed-in view takes over via auth state.
+      setStatus("idle");
+      return;
+    }
+    const { error } = await signInWithPassword(email.trim(), password);
+    if (error) {
+      setStatus("error");
+      setMessage(error);
+      return;
+    }
+    setStatus("idle");
+  };
+
+  const handleForgotPassword = async () => {
+    if (!email.trim()) {
+      setStatus("error");
+      setMessage("Enter your email above first, then use the reset link.");
+      return;
+    }
+    setStatus("sending");
+    setMessage("");
+    const { error } = await resetPassword(email.trim());
+    if (error) {
+      setStatus("error");
+      setMessage(error);
+      return;
+    }
+    setSentKind("reset");
     setStatus("sent");
   };
 
@@ -76,8 +166,120 @@ export function AuthDialog({ onClose }: { onClose: () => void }) {
           </div>
         )}
 
-        {isConfigured && !user && status !== "sent" && (
-          <form className="auth-form" onSubmit={handleSubmit}>
+        {isConfigured && !user && (
+          <div className="segmented-control" style={twoUpSegmented} role="tablist">
+            <button
+              type="button"
+              className={mode === "password" ? "active" : undefined}
+              onClick={() => {
+                setMode("password");
+                resetFeedback();
+              }}
+            >
+              Password
+            </button>
+            <button
+              type="button"
+              className={mode === "otp" ? "active" : undefined}
+              onClick={() => {
+                setMode("otp");
+                resetFeedback();
+              }}
+            >
+              Email code
+            </button>
+          </div>
+        )}
+
+        {isConfigured && !user && mode === "password" && status !== "sent" && (
+          <form className="auth-form" onSubmit={handlePasswordSubmit}>
+            <p className="auth-note">
+              {view === "signin"
+                ? "Sign in with your email and password."
+                : "Create an account to sync your workspace across devices."}
+            </p>
+            <label className="auth-field">
+              <span>Email</span>
+              <input
+                type="email"
+                required
+                autoComplete="email"
+                placeholder="you@example.com"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+              />
+            </label>
+            {view === "signup" && (
+              <label className="auth-field">
+                <span>Display name (optional)</span>
+                <input
+                  type="text"
+                  autoComplete="name"
+                  placeholder="How should we call you?"
+                  value={displayName}
+                  onChange={(event) => setDisplayName(event.target.value)}
+                />
+              </label>
+            )}
+            <label className="auth-field">
+              <span>Password</span>
+              <input
+                type="password"
+                required
+                minLength={view === "signup" ? 8 : undefined}
+                autoComplete={view === "signup" ? "new-password" : "current-password"}
+                placeholder={view === "signup" ? "At least 8 characters" : "Your password"}
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+              />
+            </label>
+            {status === "error" && (
+              <p className="auth-error" role="alert">
+                {message}
+              </p>
+            )}
+            <button
+              className="primary-button"
+              type="submit"
+              disabled={status === "sending"}
+            >
+              <KeyRound size={15} />
+              {view === "signin"
+                ? status === "sending"
+                  ? "Signing in…"
+                  : "Sign in"
+                : status === "sending"
+                  ? "Creating account…"
+                  : "Create account"}
+            </button>
+            {view === "signin" && (
+              <button
+                type="button"
+                className="pro-manage-link"
+                style={linkButton}
+                onClick={handleForgotPassword}
+              >
+                Forgot password?
+              </button>
+            )}
+            <button
+              type="button"
+              className="pro-manage-link"
+              style={linkButton}
+              onClick={() => {
+                setView(view === "signin" ? "signup" : "signin");
+                resetFeedback();
+              }}
+            >
+              {view === "signin"
+                ? "New here? Create an account"
+                : "Already have an account? Sign in"}
+            </button>
+          </form>
+        )}
+
+        {isConfigured && !user && mode === "otp" && status !== "sent" && (
+          <form className="auth-form" onSubmit={handleOtpSubmit}>
             <p className="auth-note">
               Enter your email and we&apos;ll send a magic link to sign in — no password
               needed.
@@ -111,7 +313,24 @@ export function AuthDialog({ onClose }: { onClose: () => void }) {
 
         {isConfigured && !user && status === "sent" && (
           <p className="auth-note" role="status">
-            Check <strong>{email}</strong> for a sign-in link. You can close this dialog.
+            {sentKind === "otp" && (
+              <>
+                Check <strong>{email}</strong> for a sign-in link. You can close this
+                dialog.
+              </>
+            )}
+            {sentKind === "confirm" && (
+              <>
+                Check <strong>{email}</strong> to confirm your account, then come back
+                and sign in.
+              </>
+            )}
+            {sentKind === "reset" && (
+              <>
+                Check <strong>{email}</strong> for a password reset link. You can close
+                this dialog.
+              </>
+            )}
           </p>
         )}
       </section>

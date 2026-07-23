@@ -21,6 +21,32 @@ export type AuthContextValue = {
   subscriptionPro: boolean;
   /** Send a passwordless magic-link sign-in email. */
   signInWithOtp: (email: string) => Promise<{ error: string | null }>;
+  /**
+   * Create an account with email + password. `needsConfirmation` is true when
+   * Supabase requires the user to confirm their email before a session exists.
+   */
+  signUpWithPassword: (
+    email: string,
+    password: string,
+    displayName?: string
+  ) => Promise<{ error: string | null; needsConfirmation: boolean }>;
+  /** Sign in with email + password. */
+  signInWithPassword: (
+    email: string,
+    password: string
+  ) => Promise<{ error: string | null }>;
+  /** Send a password reset email. */
+  resetPassword: (email: string) => Promise<{ error: string | null }>;
+  /**
+   * True after Supabase fires PASSWORD_RECOVERY (the user arrived via a reset
+   * link) until the flow is completed or dismissed. The app shell surfaces the
+   * "set a new password" form while this is set.
+   */
+  passwordRecovery: boolean;
+  /** Set a new password for the current (recovery) session. */
+  updatePassword: (password: string) => Promise<{ error: string | null }>;
+  /** Complete or dismiss the password recovery flow. */
+  completePasswordRecovery: () => void;
   signOut: () => Promise<void>;
 };
 
@@ -36,6 +62,21 @@ const loggedOutDefault: AuthContextValue = {
   signInWithOtp: async () => ({
     error: "Cloud sync is not configured."
   }),
+  signUpWithPassword: async () => ({
+    error: "Cloud sync is not configured.",
+    needsConfirmation: false
+  }),
+  signInWithPassword: async () => ({
+    error: "Cloud sync is not configured."
+  }),
+  resetPassword: async () => ({
+    error: "Cloud sync is not configured."
+  }),
+  passwordRecovery: false,
+  updatePassword: async () => ({
+    error: "Cloud sync is not configured."
+  }),
+  completePasswordRecovery: () => {},
   signOut: async () => {}
 };
 
@@ -46,6 +87,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState<boolean>(isConfigured);
   const [session, setSession] = useState<Session | null>(null);
   const [subscriptionPro, setSubscriptionPro] = useState(false);
+  const [passwordRecovery, setPasswordRecovery] = useState(false);
 
   useEffect(() => {
     if (!supabase) return;
@@ -61,8 +103,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (active) setLoading(false);
       });
 
-    const { data } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+    const { data } = supabase.auth.onAuthStateChange((event, nextSession) => {
       setSession(nextSession);
+      // The user landed from a reset-password email link; keep the flag up
+      // until they set a new password (or dismiss the form).
+      if (event === "PASSWORD_RECOVERY") setPasswordRecovery(true);
     });
 
     return () => {
@@ -108,6 +153,48 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return { error: error ? error.message : null };
   }, []);
 
+  const signUpWithPassword = useCallback(
+    async (email: string, password: string, displayName?: string) => {
+      if (!supabase) {
+        return { error: "Cloud sync is not configured.", needsConfirmation: false };
+      }
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          emailRedirectTo: window.location.origin,
+          ...(displayName ? { data: { display_name: displayName } } : {})
+        }
+      });
+      if (error) return { error: error.message, needsConfirmation: false };
+      // No session means the project requires email confirmation first.
+      return { error: null, needsConfirmation: data.session === null };
+    },
+    []
+  );
+
+  const signInWithPassword = useCallback(async (email: string, password: string) => {
+    if (!supabase) return { error: "Cloud sync is not configured." };
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    return { error: error ? error.message : null };
+  }, []);
+
+  const resetPassword = useCallback(async (email: string) => {
+    if (!supabase) return { error: "Cloud sync is not configured." };
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: window.location.origin
+    });
+    return { error: error ? error.message : null };
+  }, []);
+
+  const updatePassword = useCallback(async (password: string) => {
+    if (!supabase) return { error: "Cloud sync is not configured." };
+    const { error } = await supabase.auth.updateUser({ password });
+    return { error: error ? error.message : null };
+  }, []);
+
+  const completePasswordRecovery = useCallback(() => setPasswordRecovery(false), []);
+
   const signOut = useCallback(async () => {
     if (!supabase) return;
     await supabase.auth.signOut();
@@ -121,9 +208,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       session,
       subscriptionPro,
       signInWithOtp,
+      signUpWithPassword,
+      signInWithPassword,
+      resetPassword,
+      passwordRecovery,
+      updatePassword,
+      completePasswordRecovery,
       signOut
     }),
-    [isConfigured, loading, user, session, subscriptionPro, signInWithOtp, signOut]
+    [
+      isConfigured,
+      loading,
+      user,
+      session,
+      subscriptionPro,
+      signInWithOtp,
+      signUpWithPassword,
+      signInWithPassword,
+      resetPassword,
+      passwordRecovery,
+      updatePassword,
+      completePasswordRecovery,
+      signOut
+    ]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

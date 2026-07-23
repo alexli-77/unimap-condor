@@ -4,11 +4,11 @@ import {
   Compass,
   Layers3,
   Loader2,
+  Lock,
   Settings2,
   SlidersHorizontal,
   Sparkles,
   Star,
-  UserCircle2,
   X
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -24,10 +24,17 @@ import { ViewPanel } from "./components/panels/ViewPanel";
 import { PreferenceDialog } from "./components/preference/PreferenceDialog";
 import { ProUpgradeCard } from "./components/ProUpgradeCard";
 import { AuthDialog } from "./components/auth/AuthDialog";
+import { ResetPasswordDialog } from "./components/auth/ResetPasswordDialog";
+import { AccountMenu } from "./components/account/AccountMenu";
 import { useAuth } from "./state/authContext";
 import { useDebouncedValue } from "./hooks/useDebouncedValue";
 import { buildShortlistHtml } from "./exportShortlist";
-import { canAddCompareSchool, upgradeCopy } from "./entitlements";
+import {
+  canAddCompareSchool,
+  canUseCompare,
+  gateCopy,
+  upgradeCopy
+} from "./entitlements";
 import { useWorkspace } from "./state/workspaceContext";
 import type {
   RankingFeature,
@@ -59,6 +66,7 @@ export function App() {
     applyWorkspaceBackup,
     buildWorkspaceBackup,
     entitlements,
+    accessTier,
     upgradeHint,
     showUpgradeHint,
     dismissUpgradeHint,
@@ -66,7 +74,7 @@ export function App() {
     openProCard,
     closeProCard
   } = useWorkspace();
-  const { isConfigured: isAuthConfigured, user } = useAuth();
+  const { passwordRecovery, completePasswordRecovery } = useAuth();
 
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [availabilities, setAvailabilities] = useState<SourceAvailability[]>([]);
@@ -216,10 +224,18 @@ export function App() {
     return { count: filteredFeatures.length, countries: countries.size, bestRank };
   }, [filteredFeatures]);
 
+  // Hard gate: Compare is Pro-only. Locked touchpoints stay visible but route
+  // to the Pro upsell instead of mutating compare state.
+  const compareUnlocked = canUseCompare(accessTier);
+
   const addToCompare = (id: number) => {
+    if (!compareUnlocked) {
+      openProCard();
+      return;
+    }
     if (compareIds.includes(id)) return;
-    // Soft paywall: Free compares up to 3 schools, Pro up to 6. At the cap we
-    // nudge instead of silently dropping the oldest column.
+    // Pro caps the Compare table at 6 columns. At the cap we nudge instead of
+    // silently dropping the oldest column.
     if (!canAddCompareSchool(entitlements, compareIds.length)) {
       showUpgradeHint(upgradeCopy.compareCap);
       return;
@@ -362,10 +378,14 @@ export function App() {
             className={`map-nav-item ${activeLeftPanel === "compare" ? "active" : ""}`}
             type="button"
             aria-pressed={activeLeftPanel === "compare"}
-            onClick={() => toggleLeftPanel("compare")}
+            title={compareUnlocked ? undefined : gateCopy.compareLocked}
+            onClick={() =>
+              compareUnlocked ? toggleLeftPanel("compare") : openProCard()
+            }
           >
             <span className="map-nav-icon">
               <ArrowLeftRight size={25} />
+              {!compareUnlocked && <Lock className="map-nav-lock" size={13} />}
             </span>
             <span>Compare</span>
           </button>
@@ -401,24 +421,7 @@ export function App() {
             </span>
             <span>Guide</span>
           </button>
-          <button
-            className={`map-nav-item ${user ? "active" : ""}`}
-            type="button"
-            aria-pressed={isAuthOpen}
-            onClick={() => setIsAuthOpen(true)}
-            title={
-              isAuthConfigured
-                ? user
-                  ? `Signed in as ${user.email}`
-                  : "Sign in to sync your workspace"
-                : "Cloud sync not configured"
-            }
-          >
-            <span className="map-nav-icon">
-              <UserCircle2 size={25} />
-            </span>
-            <span>{user ? "Account" : "Sign in"}</span>
-          </button>
+          <AccountMenu onSignIn={() => setIsAuthOpen(true)} />
         </aside>
 
         {isConfigOpen && (
@@ -447,6 +450,8 @@ export function App() {
         )}
 
         {isAuthOpen && <AuthDialog onClose={() => setIsAuthOpen(false)} />}
+
+        {passwordRecovery && <ResetPasswordDialog onClose={completePasswordRecovery} />}
 
         {activeLeftPanel && (
           <div className="drawer-shell">
@@ -484,6 +489,7 @@ export function App() {
                   onExportWorkspace={exportWorkspace}
                   onExportShortlist={exportShortlistHtml}
                   onImportWorkspace={importWorkspace}
+                  onSignIn={() => setIsAuthOpen(true)}
                   workspaceMessage={workspaceMessage}
                 />
               )}
@@ -605,6 +611,7 @@ export function App() {
                 mode={mode}
                 onClose={() => setSelected(null)}
                 onCompare={() => addToCompare(selected.properties.universityId)}
+                onSignIn={() => setIsAuthOpen(true)}
               />
             </aside>
           </div>

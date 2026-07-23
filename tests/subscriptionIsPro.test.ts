@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildCheckoutUrl,
   isSubscriptionActive,
+  startCheckout,
   type SubscriptionRecord
 } from "../src/subscription";
 
@@ -86,5 +87,41 @@ describe("buildCheckoutUrl", () => {
     const url = new URL(buildCheckoutUrl(base, { userId: "user-9" }));
     expect(url.searchParams.get("checkout[email]")).toBeNull();
     expect(url.searchParams.get("checkout[custom][user_id]")).toBe("user-9");
+  });
+});
+
+describe("startCheckout (LEO-238)", () => {
+  const base = "https://store.lemonsqueezy.com/checkout/buy/abc";
+
+  it("refuses to open checkout without a userId (anonymous)", () => {
+    let opened: string | null = null;
+    const ok = startCheckout(base, { email: "a@b.com" }, (url) => {
+      opened = url;
+    });
+    expect(ok).toBe(false);
+    expect(opened).toBeNull();
+  });
+
+  it("refuses when no checkout base url is configured", () => {
+    let called = false;
+    const ok = startCheckout(undefined, { userId: "user-1" }, () => {
+      called = true;
+    });
+    expect(ok).toBe(false);
+    expect(called).toBe(false);
+  });
+
+  it("opens checkout carrying the user_id for a signed-in user", () => {
+    let opened = "";
+    const ok = startCheckout(
+      base,
+      { email: "a@b.com", userId: "user-42" },
+      (url) => {
+        opened = url;
+      }
+    );
+    expect(ok).toBe(true);
+    const parsed = new URL(opened);
+    expect(parsed.searchParams.get("checkout[custom][user_id]")).toBe("user-42");
   });
 });

@@ -436,7 +436,15 @@ export function App() {
           <WelcomeOverlay onStartTemplate={startWithTemplate} onSkip={dismissWelcome} />
         )}
 
-        {isProCardOpen && <ProUpgradeCard onClose={closeProCard} />}
+        {isProCardOpen && (
+          <ProUpgradeCard
+            onClose={closeProCard}
+            onRequireSignIn={() => {
+              closeProCard();
+              setIsAuthOpen(true);
+            }}
+          />
+        )}
 
         {isAuthOpen && <AuthDialog onClose={() => setIsAuthOpen(false)} />}
 

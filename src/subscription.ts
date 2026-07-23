@@ -80,3 +80,35 @@ export function buildCheckoutUrl(baseUrl: string, context: CheckoutContext = {})
     return baseUrl.includes("?") ? `${baseUrl}&${query}` : `${baseUrl}?${query}`;
   }
 }
+
+/** How a checkout URL is handed off (defaults to opening a new tab). */
+export type CheckoutOpener = (url: string) => void;
+
+const openInNewTab: CheckoutOpener = (url) => {
+  window.open(url, "_blank", "noopener,noreferrer");
+};
+
+/**
+ * Open the Lemon Squeezy checkout for a signed-in user (LEO-238).
+ *
+ * Hard requirement: a `userId` must be present. The webhook drops any
+ * subscription event it can't link to a user (`missing user_id`), so opening
+ * checkout without one would take the buyer's money and never unlock Pro. This
+ * is the last-line guard behind the ProUpgradeCard's sign-in gate — if there is
+ * no user id we refuse and warn instead of handing off.
+ *
+ * Returns true when checkout was opened, false when it was refused.
+ */
+export function startCheckout(
+  baseUrl: string | undefined | null,
+  context: CheckoutContext = {},
+  open: CheckoutOpener = openInNewTab
+): boolean {
+  if (!baseUrl) return false;
+  if (!context.userId) {
+    console.warn("startCheckout: refusing checkout without a user_id (LEO-238).");
+    return false;
+  }
+  open(buildCheckoutUrl(baseUrl, context));
+  return true;
+}

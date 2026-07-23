@@ -21,3 +21,4 @@ tools/intake/scrapy/output/*
 !tools/intake/scrapy/output/.gitkeep
 .vercel
 .worktrees/
+supabase/.temp/

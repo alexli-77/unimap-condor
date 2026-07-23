@@ -33,7 +33,6 @@ export const palette = [
 export const detailTabs: Array<{ id: DetailTab; label: string }> = [
   { id: "overview", label: "overview" },
   { id: "decision", label: "decision" },
-  { id: "rankings", label: "rankings" },
   { id: "research", label: "research" },
   { id: "faculty", label: "faculty" },
   { id: "recommendations", label: "recommend" },

@@ -58,7 +58,6 @@ export type WorkspaceBackup = {
 export type DetailTab =
   | "overview"
   | "decision"
-  | "rankings"
   | "research"
   | "faculty"
   | "recommendations"

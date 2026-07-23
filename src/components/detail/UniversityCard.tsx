@@ -155,9 +155,13 @@ export function UniversityCard({
         <LockedTabCard onOpenPro={openProCard} />
       ) : (
         <>
-          {tab === "overview" && <OverviewPanel feature={feature} />}
+          {tab === "overview" && (
+            <>
+              <OverviewPanel feature={feature} />
+              <RankingsPanel feature={feature} mode={mode} />
+            </>
+          )}
           {tab === "decision" && <DecisionPanel feature={feature} decision={decision} />}
-          {tab === "rankings" && <RankingsPanel feature={feature} mode={mode} />}
           {tab === "research" && <ResearchPanel feature={feature} />}
           {tab === "faculty" && <FacultyPanel feature={feature} />}
           {tab === "recommendations" && <RecommendationsPanel feature={feature} />}

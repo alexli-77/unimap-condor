@@ -3337,16 +3337,6 @@ textarea:focus {
   padding: 0 16px;
 }
 
-.map-nav-lock {
-  position: absolute;
-  right: 6px;
-  bottom: 4px;
-  padding: 1px;
-  border-radius: 999px;
-  color: #6d3bd1;
-  background: #eef8fb;
-}
-
 .detail-tabs button .tab-lock {
   flex: none;
   color: #8894a6;

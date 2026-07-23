@@ -6,8 +6,13 @@ import { useMemo } from "react";
 // one of several cool-tone palettes (also hash-picked); Pro users share a fixed
 // gold palette while keeping their own pattern — upgrading just recolors.
 
-const GRID = 8;
-const HALF = GRID / 2;
+// The pattern is a small centered glyph inside a larger frame (like Claude's
+// avatar) rather than filling the whole tile: 5x5 mirrored pattern, 2 cells of
+// backdrop padding on every side.
+const PATTERN = 5;
+const PATTERN_HALF = Math.ceil(PATTERN / 2);
+const PAD = 2;
+const FRAME = PATTERN + PAD * 2;
 
 /** Dark-friendly backdrop shared by every palette. */
 const AVATAR_BACKGROUND = "#1e293b";
@@ -51,12 +56,13 @@ function buildCells(seed: string): { cells: Cell[]; paletteIndex: number } {
   const hash = hashSeed(seed);
   const rng = createRng(hash);
   const cells: Cell[] = [];
-  for (let y = 0; y < GRID; y += 1) {
-    for (let x = 0; x < HALF; x += 1) {
+  for (let y = 0; y < PATTERN; y += 1) {
+    for (let x = 0; x < PATTERN_HALF; x += 1) {
       if (rng() < 0.5) continue;
       const shade = Math.floor(rng() * 3);
+      const mirrored = PATTERN - 1 - x;
       cells.push({ x, y, shade });
-      cells.push({ x: GRID - 1 - x, y, shade });
+      if (mirrored !== x) cells.push({ x: mirrored, y, shade });
     }
   }
   return { cells, paletteIndex: hash % COOL_PALETTES.length };
@@ -83,17 +89,17 @@ export function PixelAvatar({
       className={className ? `pixel-avatar ${className}` : "pixel-avatar"}
       width={size}
       height={size}
-      viewBox={`0 0 ${GRID} ${GRID}`}
+      viewBox={`0 0 ${FRAME} ${FRAME}`}
       role="img"
       aria-hidden="true"
       shapeRendering="crispEdges"
     >
-      <rect width={GRID} height={GRID} fill={AVATAR_BACKGROUND} />
+      <rect width={FRAME} height={FRAME} fill={AVATAR_BACKGROUND} />
       {cells.map((cell) => (
         <rect
           key={`${cell.x}-${cell.y}`}
-          x={cell.x}
-          y={cell.y}
+          x={cell.x + PAD}
+          y={cell.y + PAD}
           width={1}
           height={1}
           fill={palette[cell.shade]}

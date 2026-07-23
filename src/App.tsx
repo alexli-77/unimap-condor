@@ -4,7 +4,6 @@ import {
   Compass,
   Layers3,
   Loader2,
-  Lock,
   Settings2,
   SlidersHorizontal,
   Sparkles,
@@ -385,7 +384,6 @@ export function App() {
           >
             <span className="map-nav-icon">
               <ArrowLeftRight size={25} />
-              {!compareUnlocked && <Lock className="map-nav-lock" size={13} />}
             </span>
             <span>Compare</span>
           </button>
